@@ -1,0 +1,6 @@
+#!/bin/bash
+
+./image_deid_etl \
+    --check_orthanc \
+    --run_pipeline \
+    orthanc_study_uuids.json

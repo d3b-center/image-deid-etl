@@ -1,14 +1,11 @@
-import nibabel as nib
-import matplotlib.image
-from matplotlib import cm
-import numpy as np
-import cv2
-from PIL import Image
-from glob import glob
 import os
-import shutil
-import math
-import pandas as pd
+from glob import glob
+
+import cv2
+import nibabel as nib
+import numpy as np
+from PIL import Image
+
 
 def merge_images_vertically(imgs):
     '''
