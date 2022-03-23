@@ -1,0 +1,77 @@
+{
+  "nodes": {
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1644229661,
+        "narHash": "sha256-1YdnJAsNy69bpcjuoKdOYQX0YxZBiCYZo4Twxerqv7k=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "3cecb5b042f7f209c56ffd8371b2711a290ec797",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1647350163,
+        "narHash": "sha256-OcMI+PFEHTONthXuEQNddt16Ml7qGvanL3x8QOl2Aao=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "3eb07eeafb52bcbf02ce800f032f18d666a9498d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-dcm2niix": {
+      "locked": {
+        "lastModified": 1648057318,
+        "narHash": "sha256-701Ntr44i+sHibZHSrdoqBaSF2RIPhWpiOpKyK9H4+Y=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "38eccfa38687aee87f1690991e9924a555e5ef86",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "38eccfa38687aee87f1690991e9924a555e5ef86",
+        "type": "github"
+      }
+    },
+    "nixpkgs-flywheel-cli": {
+      "locked": {
+        "lastModified": 1648046518,
+        "narHash": "sha256-iPML1tRb4r2fHl/S85fxloYHzdnIs2HlXjEpIcPtTzQ=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "826d00cd02e6cd58d56c77784bcddcf496e7c330",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "826d00cd02e6cd58d56c77784bcddcf496e7c330",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-dcm2niix": "nixpkgs-dcm2niix",
+        "nixpkgs-flywheel-cli": "nixpkgs-flywheel-cli"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
