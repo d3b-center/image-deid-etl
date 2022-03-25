@@ -5,6 +5,7 @@ The Image De-identification ETL is a WIP tool to assist with reading DICOM image
 - [Getting Started](#getting-started)
   - [Dependencies](#dependencies)
   - [Instructions](#instructions)
+- [Everyday Usage](#everyday-usage)
 
 ## Getting Started
 
@@ -68,3 +69,13 @@ optional arguments:
   --s3_backup_niftis    Copies NIfTIs to S3. (default: False)
   --s3_backup_images    Copies JPGs to S3. (default: False)
 ```
+
+## Everyday Usage
+
+Each time you start a new Terminal session, you'll need to enter the Nix development shell:
+
+```console
+$ nix develop
+```
+
+Also, if you make any changes to your `.env` file or `flake.nix`, you will need to detach (<kbd>Ctrl</kbd> + <kbd>D</kbd>) and re-enter the development shell.
