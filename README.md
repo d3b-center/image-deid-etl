@@ -6,6 +6,8 @@ The Image De-identification ETL is a WIP tool to assist with reading DICOM image
   - [Dependencies](#dependencies)
   - [Instructions](#instructions)
 - [Everyday Usage](#everyday-usage)
+  - [AWS](#aws)
+  - [Nix Shell](#nix-shell)
 
 ## Getting Started
 
@@ -71,6 +73,14 @@ optional arguments:
 ```
 
 ## Everyday Usage
+
+### AWS
+
+CHOP's AWS SSO configuration will automatically sign you out of your session every 1 to 2 hours. If you encounter any permission errors, your session has likely expired. Follow [these](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html#sso-using-profile) instructions to refresh your login, using the `aws sso login` command.
+
+If you do not have the AWS CLI v2 installed locally, you will need to execute these steps from within the Nix development shell.
+
+### Nix Shell
 
 Each time you start a new Terminal session, you'll need to enter the Nix development shell:
 
