@@ -1,0 +1,253 @@
+#!/usr/bin/env python
+import argparse
+import json
+import logging.config
+import os
+import shutil
+import sys
+
+from etl.custom_etl import delete_acquisitions_by_modality, delete_sessions
+from etl.custom_flywheel import inject_sidecar_metadata
+from etl.exceptions import ImproperlyConfigured
+from etl.main_pipeline import validate_info, run_deid
+from etl.orthanc import get_orthanc_url, get_uuids, download_unpack_copy
+
+FLYWHEEL_GROUP = os.getenv("FLYWHEEL_GROUP")
+if FLYWHEEL_GROUP is None:
+    raise ImproperlyConfigured(
+        "You must supply a valid Flywheel group in FLYWHEEL_GROUP."
+    )
+
+# Configure Python's logging module. The Django project does a fantastic job explaining how logging works:
+# https://docs.djangoproject.com/en/4.0/topics/logging/
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+            },
+        },
+        "root": {
+            "handlers": ["console"],
+            "level": os.getenv("IMAGE_DEID_ETL_LOG_LEVEL", "INFO"),
+        },
+    }
+)
+
+logger = logging.getLogger(__name__)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="A WIP tool to assist with reading DICOM images from Orthanc, conversion to anonymized NIfTI "
+                    "images, and uploading to Flywheel.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--program",
+        nargs="?",
+        default="cbtn",
+        choices=["cbtn", "corsica"],
+        required=True,
+        help="Program namespace.",
+    )
+    parser.add_argument(
+        "--site",
+        nargs="?",
+        default="chop",
+        help="Site namespace.",
+        required=True,
+    )
+    parser.add_argument(
+        "--check_orthanc",
+        action="store_true",
+        help="Check to see if there are new studies.",
+    )
+    parser.add_argument(
+        "--run_pipeline",
+        action="store_true",
+        help='Run the pipeline & upload "safe" files.',
+    )
+    parser.add_argument(
+        "--delete_local",
+        action="store_true",
+        help="Delete files off EC2.",
+    )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Check sub/ses mapping.",
+    )
+    parser.add_argument(
+        "--upload2fw",
+        action="store_true",
+        help="Upload results to Flywheel, when complete.",
+    )
+    parser.add_argument(
+        "--add_fw_metadata",
+        action="store_true",
+        help="Add metadata in JSON sidecars to NIfTIs on Flywheel.",
+    )
+    parser.add_argument(
+        "--s3_backup_niftis",
+        action="store_true",
+        help="Copies NIfTIs to S3.",
+    )
+    parser.add_argument(
+        "--s3_backup_images",
+        action="store_true",
+        help="Copies JPGs to S3.",
+    )
+    parser.add_argument(
+        "path_to_uuid_list",
+        nargs=argparse.REMAINDER,
+        help="Path to file containing Orthanc UUIDs to process.",
+    )
+
+    args = parser.parse_args()
+
+    s3_path = (
+        "s3://d3b-phi-data-prd/imaging/radiology/"
+        + args.program
+        + "/"
+        + args.site
+        + "/"
+    )
+    s3_path_ims = "s3://d3b-phi-data-prd/imaging/radiology/images4dl/"
+    local_path = args.program + "/" + args.site
+
+    # ====== validate the inputs ======
+    if local_path[-1:] != "/":
+        local_path = local_path + "/"
+
+    if s3_path[-1:] != "/":
+        s3_path = s3_path + "/"
+
+    file_path = local_path + "files/"
+
+    # # ====== get list of UUIDs to process ========================
+    if args.check_orthanc:
+        orthanc_url = get_orthanc_url()
+        new_uuids, missing_list, input_df = get_uuids(
+            orthanc_url, args.path_to_uuid_list[0], "all"
+        )
+        if new_uuids:
+            logger.info("%d new studies found on Orthanc.", len(new_uuids))
+        else:
+            logger.info("No new UUIDs found on Orthanc")
+
+    # validate that we have all the right info/mapping
+    if args.validate:
+        logger.info("Generating subject mapping for validation.")
+        validate_info(local_path, args.program, file_path)
+
+    # run the pipeline
+    if args.run_pipeline:
+        ## ************** download studies from Orthanc **************
+        max_studies = 40
+        logger.info("Checking for new UUIDs.")
+        orthanc_url = get_orthanc_url()
+        new_uuids, missing_list, input_df = get_uuids(
+            orthanc_url, args.path_to_uuid_list[0], "all"
+        )
+        if len(new_uuids) > max_studies:
+            new_uuids = new_uuids[0 : (max_studies - 1)]
+        ##  ************** if there are new uuids, download & prep files **************
+        if new_uuids:
+            logger.info("Found UUIDs in Orthanc, beginning to download.")
+            session_modality_to_skip = ["DX", "US"]  # DX=XR
+            download_unpack_copy(
+                orthanc_url,
+                s3_path,
+                new_uuids,
+                local_path + "DICOMs/",
+                session_modality_to_skip,
+            )
+            ## remove any acquisitions/sessions that we don't want to process
+            delete_acquisitions_by_modality(local_path + "DICOMs/", "OT")
+            delete_acquisitions_by_modality(local_path + "DICOMs/", "SR")
+            delete_sessions(
+                local_path + "DICOMs/", "script"
+            )  # delete any "script" sessions
+            delete_sessions(local_path + "DICOMs/", "Bone Scan")
+            # delete_sessions_by_modality(local_path+'DICOMs/','XR') # delete X-rays
+            # delete_sessions_by_modality(local_path+'DICOMs/','US') # delete ultrasounds
+        else:
+            logger.info("No UUIDs found in Orthanc.")
+
+        logger.info("Commencing de-identification process...")
+        # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
+        run_deid(local_path, s3_path, args.program)
+
+        logger.info('Uploading "safe" files to Flywheel...')
+        os.system(
+            f"fw import folder --group {FLYWHEEL_GROUP} --skip-existing -y {args.program}/{args.site}/NIfTIs/"
+        )
+        logger.info("Injecting sidecar metadata...")
+        inject_sidecar_metadata(FLYWHEEL_GROUP, local_path + "NIfTIs/")
+
+        logger.info("Backing up NIfTIs to S3...")
+        os.system("aws s3 sync " + local_path + "NIfTIs/ " + s3_path + "NIfTIs/")
+        logger.info("DONE PROCESSING STUDIES")
+        if os.path.exists(local_path + "NIfTIs_to_check/"):
+            logger.info(
+                "There are files to check in: " + local_path + "NIfTIs_to_check/"
+            )
+        if os.path.exists(local_path + "NIfTIs_short_json/"):
+            logger.info(
+                "There are files to check in: " + local_path + "NIfTIs_short_json/"
+            )
+
+        logger.info("Updating list of UUIDs...")
+        uuid_list = json.load(open(args.path_to_uuid_list[0], "r"))
+        uuid_list = uuid_list + new_uuids
+        with open(args.path_to_uuid_list[0], "w") as f:
+            json.dump(uuid_list, f)
+
+    # ====== upload to Flywheel ========================
+    if args.upload2fw:
+        os.system(
+            f"fw import folder --group {FLYWHEEL_GROUP} --skip-existing -y {args.program}/{args.site}/NIfTIs/"
+        )
+
+    if args.add_fw_metadata:
+        # assumes local structure == Flywheel structure
+        inject_sidecar_metadata(FLYWHEEL_GROUP, local_path + "NIfTIs/")
+
+    if args.s3_backup_niftis:
+        os.system("aws s3 sync " + local_path + "NIfTIs/ " + s3_path + "NIfTIs/")
+
+    if args.s3_backup_images:
+        os.system("aws s3 sync " + local_path + "JPGs/ " + s3_path_ims)
+        os.system("aws s3 sync " + local_path + "JPGs_3/ " + s3_path_ims)
+
+    if args.delete_local:
+        if os.path.exists(local_path + "DICOMs/"):
+            shutil.rmtree(local_path + "DICOMs/")
+            logger.info("Deleted from local: " + local_path + "DICOMs/")
+        if os.path.exists(local_path + "NIfTIs/"):
+            shutil.rmtree(local_path + "NIfTIs/")
+            logger.info("Deleted from local: " + local_path + "NIfTIs/")
+        if os.path.exists(local_path + "NIfTIs_short_json/"):
+            shutil.rmtree(local_path + "NIfTIs_short_json/")
+            logger.info("Deleted from local: " + local_path + "NIfTIs_short_json/")
+        if os.path.exists(local_path + "NIfTIs_to_check/"):
+            shutil.rmtree(local_path + "NIfTIs_to_check/")
+            logger.info("Deleted from local: " + local_path + "NIfTIs_to_check/")
+        if os.path.exists(local_path + "JPGs/"):
+            shutil.rmtree(local_path + "JPGs/")
+            logger.info("Deleted from local: " + local_path + "JPGs/")
+        if os.path.exists(local_path + "JPGs_2/"):
+            shutil.rmtree(local_path + "JPGs_2/")
+            logger.info("Deleted from local: " + local_path + "JPGs_2/")
+        if os.path.exists(local_path + "JPGs_3/"):
+            shutil.rmtree(local_path + "JPGs_3/")
+            logger.info("Deleted from local: " + local_path + "JPGs_3/")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

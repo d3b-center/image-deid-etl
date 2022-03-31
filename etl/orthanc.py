@@ -5,23 +5,20 @@ import zipfile
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def get_orthanc_url(flag):
-    if flag == 'AWS':
-        cred = ''
-        ip = ''
-        port = '80'
-        return 'http://'+cred+'@'+ip+':'+port
-    if flag == 'HPC':
-        cred = ''
-        ip = '10.30.29.10'
-        port = '8042'
-        return'http://'+cred+'@'+ip+':'+port
-    if flag == 'K8':
-        cred=''
-        ip=''
-        port='80'
-        localhost=cred+'@'+ip+':'+port
-        return 'http://'+localhost
+from etl.exceptions import ImproperlyConfigured
+
+ORTHANC_CREDENTIALS = os.getenv("ORTHANC_CREDENTIALS")
+if ORTHANC_CREDENTIALS is None:
+    raise ImproperlyConfigured("You must supply ORTHANC_CREDENTIALS.")
+
+ORTHANC_HOST = os.getenv("ORTHANC_HOST")
+if ORTHANC_HOST is None:
+    raise ImproperlyConfigured("You must supply ORTHANC_HOST.")
+
+ORTHANC_PORT = os.getenv("ORTHANC_PORT", 80)
+
+def get_orthanc_url():
+    return f"http://{ORTHANC_CREDENTIALS}@{ORTHANC_HOST}:{ORTHANC_PORT}"
 
 def all_study_uuids(orthanc_url):
 # get a list of all study uuids for a given instance
