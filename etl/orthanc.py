@@ -1,8 +1,10 @@
 import json
-import requests
 import os
 import zipfile
+
+import requests
 import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from etl.exceptions import ImproperlyConfigured
@@ -49,8 +51,7 @@ def get_uuids(orthanc_url,accession_df,in_type):
     df_col=[]
     if in_type=='all':
         uuids = all_study_uuids(orthanc_url)
-        uuid_record = json.load(open(accession_df))
-        out_list = list(set(uuids)-set(uuid_record)) # find any new uuids
+        out_list = list(set(uuids)-set(accession_df)) # find any new uuids
         accession_df=[]
     else:
         for ind,row in accession_df.iterrows():

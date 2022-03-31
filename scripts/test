@@ -1,8 +1,7 @@
 #!/bin/bash
 
 ./image_deid_etl \
+    run_pipeline \
     --program cbtn \
     --site chop \
-    --check_orthanc \
-    --run_pipeline \
-    orthanc_study_uuids.json
+    --run_pipeline

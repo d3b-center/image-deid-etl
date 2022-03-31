@@ -8,6 +8,7 @@ import sys
 
 from etl.custom_etl import delete_acquisitions_by_modality, delete_sessions
 from etl.custom_flywheel import inject_sidecar_metadata
+from etl.database import create_schema, import_uuids_from_set, get_all_processed_uuids
 from etl.exceptions import ImproperlyConfigured
 from etl.main_pipeline import validate_info, run_deid
 from etl.orthanc import get_orthanc_url, get_uuids, download_unpack_copy
@@ -39,75 +40,42 @@ logging.config.dictConfig(
 logger = logging.getLogger(__name__)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="A WIP tool to assist with reading DICOM images from Orthanc, conversion to anonymized NIfTI "
-                    "images, and uploading to Flywheel.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument(
-        "--program",
-        nargs="?",
-        default="cbtn",
-        choices=["cbtn", "corsica"],
-        required=True,
-        help="Program namespace.",
-    )
-    parser.add_argument(
-        "--site",
-        nargs="?",
-        default="chop",
-        help="Site namespace.",
-        required=True,
-    )
-    parser.add_argument(
-        "--check_orthanc",
-        action="store_true",
-        help="Check to see if there are new studies.",
-    )
-    parser.add_argument(
-        "--run_pipeline",
-        action="store_true",
-        help='Run the pipeline & upload "safe" files.',
-    )
-    parser.add_argument(
-        "--delete_local",
-        action="store_true",
-        help="Delete files off EC2.",
-    )
-    parser.add_argument(
-        "--validate",
-        action="store_true",
-        help="Check sub/ses mapping.",
-    )
-    parser.add_argument(
-        "--upload2fw",
-        action="store_true",
-        help="Upload results to Flywheel, when complete.",
-    )
-    parser.add_argument(
-        "--add_fw_metadata",
-        action="store_true",
-        help="Add metadata in JSON sidecars to NIfTIs on Flywheel.",
-    )
-    parser.add_argument(
-        "--s3_backup_niftis",
-        action="store_true",
-        help="Copies NIfTIs to S3.",
-    )
-    parser.add_argument(
-        "--s3_backup_images",
-        action="store_true",
-        help="Copies JPGs to S3.",
-    )
-    parser.add_argument(
-        "path_to_uuid_list",
-        nargs=argparse.REMAINDER,
-        help="Path to file containing Orthanc UUIDs to process.",
-    )
+def initdb(args) -> int:
+    logger.info("Initializing database schema...")
+    create_schema()
+    logger.info("Success!")
 
-    args = parser.parse_args()
+    return 0
 
+
+def import_uuids(args) -> int:
+    """
+    This command is used for importing existing, processed UUIDs from a 1-D JSON
+    file.
+    """
+    try:
+        uuids_to_import = json.load(args.uuid_file)
+        import_uuids_from_set(uuids_to_import)
+        logger.info("Imported %d new UUIDs.", len(uuids_to_import))
+        return 0
+    except Exception as e:
+        logger.error("Error: %r\nAre you trying to import already processed UUIDs?", e)
+        return 1
+
+
+def check(args) -> int:
+    new_uuids, missing_list, input_df = get_uuids(
+        get_orthanc_url(), get_all_processed_uuids(), "all"
+    )
+    if new_uuids:
+        logger.info("%d new studies found on Orthanc.", len(new_uuids))
+    else:
+        logger.info("No new UUIDs found on Orthanc")
+
+    return 0
+
+
+def run_pipeline(args) -> int:
     s3_path = (
         "s3://d3b-phi-data-prd/imaging/radiology/"
         + args.program
@@ -127,17 +95,6 @@ def main() -> int:
 
     file_path = local_path + "files/"
 
-    # # ====== get list of UUIDs to process ========================
-    if args.check_orthanc:
-        orthanc_url = get_orthanc_url()
-        new_uuids, missing_list, input_df = get_uuids(
-            orthanc_url, args.path_to_uuid_list[0], "all"
-        )
-        if new_uuids:
-            logger.info("%d new studies found on Orthanc.", len(new_uuids))
-        else:
-            logger.info("No new UUIDs found on Orthanc")
-
     # validate that we have all the right info/mapping
     if args.validate:
         logger.info("Generating subject mapping for validation.")
@@ -150,13 +107,17 @@ def main() -> int:
         logger.info("Checking for new UUIDs.")
         orthanc_url = get_orthanc_url()
         new_uuids, missing_list, input_df = get_uuids(
-            orthanc_url, args.path_to_uuid_list[0], "all"
+            orthanc_url, get_all_processed_uuids(), "all"
         )
         if len(new_uuids) > max_studies:
             new_uuids = new_uuids[0 : (max_studies - 1)]
         ##  ************** if there are new uuids, download & prep files **************
         if new_uuids:
-            logger.info("Found UUIDs in Orthanc, beginning to download.")
+            logger.info(
+                "Found new UUID(s) Orthanc, beginning to download %d new studies (max_studies = %d).",
+                len(new_uuids),
+                max_studies,
+            )
             session_modality_to_skip = ["DX", "US"]  # DX=XR
             download_unpack_copy(
                 orthanc_url,
@@ -201,10 +162,7 @@ def main() -> int:
             )
 
         logger.info("Updating list of UUIDs...")
-        uuid_list = json.load(open(args.path_to_uuid_list[0], "r"))
-        uuid_list = uuid_list + new_uuids
-        with open(args.path_to_uuid_list[0], "w") as f:
-            json.dump(uuid_list, f)
+        import_uuids_from_set(set(new_uuids))
 
     # ====== upload to Flywheel ========================
     if args.upload2fw:
@@ -245,6 +203,87 @@ def main() -> int:
         if os.path.exists(local_path + "JPGs_3/"):
             shutil.rmtree(local_path + "JPGs_3/")
             logger.info("Deleted from local: " + local_path + "JPGs_3/")
+
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="A WIP tool to assist with reading DICOM images from Orthanc, conversion to anonymized NIfTI "
+        "images, and uploading to Flywheel.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    subparsers = parser.add_subparsers()
+
+    parser_initdb = subparsers.add_parser("initdb")
+    parser_initdb.set_defaults(func=initdb)
+
+    parser_import_uuids = subparsers.add_parser("importuuids")
+    parser_import_uuids.add_argument(
+        "uuid_file",
+        type=argparse.FileType("r"),
+        help="JSON file containing Orthanc UUIDs to process.",
+    )
+    parser_import_uuids.set_defaults(func=import_uuids)
+
+    parser_check = subparsers.add_parser("check")
+    parser_check.set_defaults(func=check)
+
+    parser_run_pipeline = subparsers.add_parser("run_pipeline")
+    parser_run_pipeline.add_argument(
+        "--program",
+        nargs="?",
+        default="cbtn",
+        choices=["cbtn", "corsica"],
+        required=True,
+        help="Program namespace.",
+    )
+    parser_run_pipeline.add_argument(
+        "--site",
+        nargs="?",
+        default="chop",
+        help="Site namespace.",
+        required=True,
+    )
+    parser_run_pipeline.add_argument(
+        "--run_pipeline",
+        action="store_true",
+        help='Run the pipeline & upload "safe" files.',
+    )
+    parser_run_pipeline.add_argument(
+        "--delete_local",
+        action="store_true",
+        help="Delete files off EC2.",
+    )
+    parser_run_pipeline.add_argument(
+        "--validate",
+        action="store_true",
+        help="Check sub/ses mapping.",
+    )
+    parser_run_pipeline.add_argument(
+        "--upload2fw",
+        action="store_true",
+        help="Upload results to Flywheel, when complete.",
+    )
+    parser_run_pipeline.add_argument(
+        "--add_fw_metadata",
+        action="store_true",
+        help="Add metadata in JSON sidecars to NIfTIs on Flywheel.",
+    )
+    parser_run_pipeline.add_argument(
+        "--s3_backup_niftis",
+        action="store_true",
+        help="Copies NIfTIs to S3.",
+    )
+    parser_run_pipeline.add_argument(
+        "--s3_backup_images",
+        action="store_true",
+        help="Copies JPGs to S3.",
+    )
+    parser_run_pipeline.set_defaults(func=run_pipeline)
+
+    args = parser.parse_args()
+    args.func(args)
 
     return 0
 
