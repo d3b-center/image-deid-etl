@@ -44,6 +44,12 @@
           # The directory to create the Python virtual environment in.
           venvDir = "./.venv";
 
+          # By default, the Python setup hook propagates all Python packages to
+          # PYTHONPATH. We want to disable this behavior so, for example, we can use a
+          # different version of botocore than the one used by the awscli2 Nix package.
+          # https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/interpreters/python/setup-hook.sh#L15-L17
+          dontAddPythonPath = true;
+
           buildInputs = with pkgs; [
             awscli2
             dcm2niixSnapshot

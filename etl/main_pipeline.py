@@ -1,5 +1,8 @@
 # NOTE: cbtn-all is HARD-CODED in cbtn_subject_info, will need to change this when ADAPT sets up routine CSV updating
 import logging
+import boto3
+import pandas as pd
+import io
 
 from etl.external_data_handling import *
 from etl.images_no_save import *
@@ -8,6 +11,12 @@ logger = logging.getLogger(__name__)
 
 todays_date = datetime.now().strftime('%Y-%m-%d')
 
+# point to cbtn-all CSV file from s3 using boto3 & default AWS profile
+table_fn = 'cbtn-all_identified_2022-03-17.csv'
+bucket_name = 'd3b-phi-data-prd'
+obj_path = f'imaging/{table_fn}'
+s3_client = boto3.client('s3')
+obj = s3_client.get_object(Bucket=bucket_name, Key=obj_path)
 
 def subject_info(local_path, program, file_dir, validate=0):
     # site_name = local_path.split('/')[1]
@@ -20,11 +29,11 @@ def subject_info(local_path, program, file_dir, validate=0):
     if program == 'cbtn':
         # get CBTN Subject IDs
         try:
-            cbtn_all_fn = glob('*_updated.csv')[0]
+            cbtn_all_df = pd.read_csv(io.BytesIO(obj['Body'].read()))
         except IndexError as error:
             logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
         try:
-            sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(cbtn_all_fn,sub_info,local_path)
+            sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(cbtn_all_df,sub_info,local_path)
         except ValueError as error:
             logger.error("Unable to get subject mapping without the images (program/site folder structure) present: %r", error)
     elif program == 'corsica':
@@ -42,7 +51,7 @@ def subject_info(local_path, program, file_dir, validate=0):
     logger.info('Getting target Flywheel projects.')
 #  get target Flywheel project based on diagnosis
     if program == 'cbtn':
-        sub_mapping,sub_missing_proj = get_fw_proj_cbtn(cbtn_all_fn,sub_mapping)
+        sub_mapping,sub_missing_proj = get_fw_proj_cbtn(cbtn_all_df,sub_mapping)
         if not sub_missing_proj.empty:
             output_fn = file_dir+'missing_diagnosis_'+todays_date+'.csv'
             logger.warning('      WARNING: Subject(s) not found in CBTN-all. Please check  '+output_fn)
