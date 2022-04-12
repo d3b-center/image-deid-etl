@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import zipfile
 
@@ -8,6 +9,8 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from etl.exceptions import ImproperlyConfigured
+
+logger = logging.getLogger(__name__)
 
 ORTHANC_CREDENTIALS = os.getenv("ORTHANC_CREDENTIALS")
 if ORTHANC_CREDENTIALS is None:
@@ -160,14 +163,15 @@ def download_unpack_copy(orthanc_url,s3_path,uuids,data_dir,ses_mod_to_skip):
             output_fn = uuid+'.zip'
             output_path = data_dir+output_fn
             ## download this archive
-            download_study(orthanc_url,uuid,output_path)
-            ## copy backup to s3
-            os.system('aws s3 cp '+output_path+' '+s3_path+'DICOMs/backup/')
+            if not os.path.exists(output_path):
+                logger.info("Downloading study %s...", uuid)
+                download_study(orthanc_url, uuid, output_path)
+            else:
+                logger.info("Already downloaded study %s. Skipping download.", uuid)
             ## unpack it
+            logger.info("Extracting study %s...", uuid)
             with zipfile.ZipFile(output_path, 'r') as zip_ref:
                 zip_ref.extractall(data_dir)
-            ## delete local zip
-            os.remove(output_path)
             processed.append(uuid)
     return processed
 
