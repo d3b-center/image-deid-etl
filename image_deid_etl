@@ -69,6 +69,12 @@ def check(args) -> int:
     )
     if new_uuids:
         logger.info("%d new studies found on Orthanc.", len(new_uuids))
+
+        # Useful for local development. Allows you to mark all new studies as
+        # processed, so the ETL doesn't try to process anything.
+        if args.mark_processed:
+            import_uuids_from_set(set(new_uuids))
+            logger.info("Marked %d new studies as \"processed.\"", len(new_uuids))
     else:
         logger.info("No new UUIDs found on Orthanc")
 
@@ -227,6 +233,11 @@ def main() -> int:
     parser_import_uuids.set_defaults(func=import_uuids)
 
     parser_check = subparsers.add_parser("check")
+    parser_check.add_argument(
+        "--mark-processed",
+        action="store_true",
+        help="Mark all Orthanc UUIDs found as \"processed.\"",
+    )
     parser_check.set_defaults(func=check)
 
     parser_run_pipeline = subparsers.add_parser("run_pipeline")

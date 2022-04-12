@@ -241,9 +241,8 @@ def split_missing_values(input_df,col_name):
     out_df = input_df.dropna().reset_index(drop=True) # rows w/o missing values
     return out_df,missing_df
 
-def get_subject_mapping_cbtn(cbtn_all_fn,sub_info,data_dir):
+def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
     # map MRN to C-ID
-    cbtn_df = pd.read_csv(cbtn_all_fn)
     cbtn_df = cbtn_df[['CBTN Subject ID','MRN','First Name','Last Name']].drop_duplicates()
     sub_info['mrn'] = sub_info['mrn'].astype(str)
     cbtn_df['MRN']  = cbtn_df['MRN'].astype(str)
@@ -266,7 +265,6 @@ def get_subject_mapping_cbtn(cbtn_all_fn,sub_info,data_dir):
     subs_no_dob = sub_df[sub_df['DOB'].isnull()]
     sub_df = sub_df[~sub_df['DOB'].isnull()]
     if not subs_no_dob.empty:
-        cbtn_df = pd.read_csv(cbtn_all_fn)
         cbtn_df = cbtn_df[['CBTN Subject ID','DOB']]
         subs_no_dob = subs_no_dob.drop(columns='DOB')
         subs_no_dob = pd.merge(subs_no_dob,cbtn_df,how='left')
@@ -371,12 +369,11 @@ def closest(lst, K):
 # get the closest (min) value in list (lst) to an integer (K)
     return lst[min(range(len(lst)), key = lambda i: abs(lst[i]-K))]
 
-def get_fw_proj_cbtn(cbtn_all_fn,sub_mapping):
+def get_fw_proj_cbtn(cbtn_df,sub_mapping):
 # using the C-ID and age-at-imaging, extract the target project for each session
 #   based on the CBTN-all spreadsheet. Uses age-at-imaging to find the closest event
 #   in time in CBTN-all & then uses the Diagnosis category to derive a Flywheel project label
 #   (based on a mapping dictionary).
-    cbtn_df = pd.read_csv(cbtn_all_fn)
     cbtn_df = cbtn_df[['CBTN Subject ID','Age at Diagnosis','Diagnosis']]
     proj_mapping = json.load(open('diagnosis_mapping.json'))
     sub_list = sub_mapping['C_ID'].values.tolist()
