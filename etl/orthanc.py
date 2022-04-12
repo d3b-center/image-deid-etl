@@ -165,7 +165,7 @@ def download_unpack_copy(orthanc_url,s3_path,uuids,data_dir,ses_mod_to_skip):
             ## download this archive
             if not os.path.exists(output_path):
                 logger.info("Downloading study %s...", uuid)
-                download_study(orthanc_url,uuid,output_path)
+                download_study(orthanc_url, uuid, output_path)
             else:
                 logger.info("Already downloaded study %s. Skipping download.", uuid)
             ## unpack it
