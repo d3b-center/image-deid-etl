@@ -53,11 +53,6 @@
           ];
 
           postShellHook = ''
-            # Enable support for the deprecated `fw import` command while we
-            # migrate to `fw ingest`.
-            # https://docs.flywheel.io/hc/en-us/articles/4416119193491-Deprecation-of-CLI-fw-import-Command
-            export FLYWHEEL_CLI_LEGACY=true
-
             # Read and export our dotenv file to the environment.
             set -o allexport
             source .env
