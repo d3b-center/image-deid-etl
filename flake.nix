@@ -6,14 +6,10 @@
     # https://github.com/NixOS/nixpkgs/pull/165477
     nixpkgs-dcm2niix.url = "github:nixos/nixpkgs/38eccfa38687aee87f1690991e9924a555e5ef86";
 
-    # Pinned to @rbreslow's PR that adds the Flywheel CLI to Nixpkgs.
-    # https://github.com/NixOS/nixpkgs/pull/165458
-    nixpkgs-flywheel-cli.url = "github:nixos/nixpkgs/826d00cd02e6cd58d56c77784bcddcf496e7c330";
-
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, nixpkgs-dcm2niix, nixpkgs-flywheel-cli, flake-utils, ... }:
+  outputs = { self, nixpkgs, nixpkgs-dcm2niix, flake-utils, ... }:
     flake-utils.lib.eachSystem [ "x86_64-darwin" "x86_64-linux" ] (system:
       let
         lib = nixpkgs.lib;
@@ -34,10 +30,6 @@
               sha256 = "sha256-OdLHXcYPJROdjLR7RvBvKVQwLdVIKcVwfuH4Zkm7Bb0=";
             };
           }));
-
-        # Temporary, until @rbreslow's PR is merged into Nixpkgs.
-        flywheel-cli = (import nixpkgs-flywheel-cli { inherit system; })
-          .flywheel-cli;
       in
       {
         devShell = pkgs.mkShell {
