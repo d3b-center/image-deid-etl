@@ -5,7 +5,8 @@ The Image De-identification ETL is a WIP tool to assist with reading DICOM image
 - [Getting Started](#getting-started)
   - [Dependencies](#dependencies)
   - [Instructions](#instructions)
-- [Everyday Usage](#everyday-usage)
+- [Example Usage](#example-usage)
+- [Development](#development)
   - [AWS](#aws)
   - [Nix Shell](#nix-shell)
 
@@ -48,19 +49,40 @@ And, voilà, the CLI should fully functional ✨:
 
 ```console
 $ ./image_deid_etl -h
-
-usage: image_deid_etl [-h] {initdb,importuuids,check,run_pipeline} ...
+usage: image_deid_etl [-h] [--program [{cbtn,corsica}]] [--site [SITE]] {initdb,importuuids,check,validate,run,upload2fw,add-fw-metadata,s3-backup-niftis} ...
 
 A WIP tool to assist with reading DICOM images from Orthanc, conversion to anonymized NIfTI images, and uploading to Flywheel.
 
 positional arguments:
-  {initdb,importuuids,check,run_pipeline}
+  {initdb,importuuids,check,validate,run,upload2fw,add-fw-metadata,s3-backup-niftis}
+    validate            check sub/ses mapping
+    run                 download images and run deidentification
+    upload2fw           upload results to Flywheel, when complete
+    add-fw-metadata     add metadata in JSON sidecars to NIfTIs on Flywheel
+    s3-backup-niftis    copies NIfTIs to S3
 
 optional arguments:
   -h, --help            show this help message and exit
+  --program [{cbtn,corsica}]
+                        program namespace (default: cbtn)
+  --site [SITE]         site namespace (default: chop)
 ```
 
-## Everyday Usage
+## Example Usage
+
+To check Orthanc for and process N number of new studies, pipe the output of `check` into the `run` command:
+
+```console
+$ ./image_deid_etl check --limit N --raw | xargs ./image_deid_etl run
+```
+
+To process an individual study, specify an Orthanc UUID after the `run` command:
+
+```console
+$ ./image_deid_etl run UUID
+```
+
+## Development
 
 ### AWS
 
