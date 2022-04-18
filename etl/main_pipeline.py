@@ -1,8 +1,6 @@
 # NOTE: cbtn-all is HARD-CODED in cbtn_subject_info, will need to change this when ADAPT sets up routine CSV updating
 import logging
-import boto3
 import pandas as pd
-import io
 
 from etl.external_data_handling import *
 from etl.images_no_save import *
@@ -11,14 +9,7 @@ logger = logging.getLogger(__name__)
 
 todays_date = datetime.now().strftime('%Y-%m-%d')
 
-# point to cbtn-all CSV file from s3 using boto3 & default AWS profile
-table_fn = 'cbtn-all_identified_2022-03-17.csv'
-bucket_name = 'd3b-phi-data-prd'
-obj_path = f'imaging/{table_fn}'
-s3_client = boto3.client('s3')
-obj = s3_client.get_object(Bucket=bucket_name, Key=obj_path)
-
-def subject_info(local_path, program, file_dir, validate=0):
+def subject_info(local_path, program, file_dir, s3_path_to_csv, validate=0):
     # site_name = local_path.split('/')[1]
     logger.info('Getting subject ids.')
     sub_info = get_subject_info_dir(local_path) # sub_info = get_subject_info_dicoms(local_path) # slower b/c iterates over all DICOM files, doesn't depend on dir structure/names though
@@ -29,7 +20,7 @@ def subject_info(local_path, program, file_dir, validate=0):
     if program == 'cbtn':
         # get CBTN Subject IDs
         try:
-            cbtn_all_df = pd.read_csv(io.BytesIO(obj['Body'].read()))
+            cbtn_all_df = pd.read_csv(s3_path_to_csv)
         except IndexError as error:
             logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
         try:
@@ -65,10 +56,10 @@ def subject_info(local_path, program, file_dir, validate=0):
     else:
         return sub_mapping
 
-def validate_info(local_path, program, file_dir):
+def validate_info(local_path, program, file_dir, s3_path_to_csv):
     # save a CSV of the subject mapping & DICOM fields to review
     sub_mapping,sub_missing_c_ids,sub_missing_ses,sub_missing_proj = subject_info(local_path + 'DICOMs/', program,
-                                                                                  file_dir, 1)
+                                                                                  file_dir, s3_path_to_csv, 1)
     output_fn = file_dir+'sub_mapping_'+todays_date+'.csv'
     sub_mapping.to_csv(output_fn,index=False)
     print('Mapping created: '+output_fn)
@@ -85,12 +76,12 @@ def validate_info(local_path, program, file_dir):
             sub_list=sub_missing_proj['accession_num'].unique().tolist()
             print('Accessions missing projects '+', '.join(sub_list))
 
-def run_deid(local_path, s3_path, program):
+def run_deid(local_path, s3_path_to_csv, program):
     file_dir = local_path+'files/'
     # The "files/" directory path needs to exist, otherwise subject_info will fail to write the csv files. Equivalent
     # to mkdir -p.
     os.makedirs(file_dir, exist_ok=True)
-    sub_mapping = subject_info(local_path + 'DICOMs/', program, file_dir)
+    sub_mapping = subject_info(local_path + 'DICOMs/', program, file_dir, s3_path_to_csv)
     output_fn = file_dir+'sub_mapping_'+todays_date+'.csv'
     if os.path.exists(output_fn):
         ind=1
@@ -122,9 +113,3 @@ def run_deid(local_path, s3_path, program):
     # move acquisitions w/o image to quarantine
         if missing_ims:
             move_suspicious_files(missing_ims,local_path+'NIfTIs_to_check/')
-    # update logs 
-        # log_df = pd.read_csv(log_path)
-        # # # log_df['accession_num'] = log_df['accession_num'].astype(str)
-        # # # out_df = pd.merge(log_df,sub_mapping,on='accession_num')
-        # out_df = pd.concat([log_df,sub_mapping], sort=False)
-        # out_df.to_csv(log_path,index=False)

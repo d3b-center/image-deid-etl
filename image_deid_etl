@@ -19,6 +19,12 @@ if FLYWHEEL_GROUP is None:
         "You must supply a valid Flywheel group in FLYWHEEL_GROUP."
     )
 
+s3_parent_bucket = os.getenv("S3_BUCKET")
+if s3_parent_bucket is None:
+    raise ImproperlyConfigured(
+        "You must supply a valid s3 bucket/path in S3_BUCKET."
+    )
+
 # Configure Python's logging module. The Django project does a fantastic job explaining how logging works:
 # https://docs.djangoproject.com/en/4.0/topics/logging/
 logging.config.dictConfig(
@@ -83,13 +89,14 @@ def check(args) -> int:
 
 def run_pipeline(args) -> int:
     s3_path = (
-        "s3://d3b-phi-data-prd/imaging/radiology/"
+        s3_parent_bucket
+        + "radiology/"
         + args.program
         + "/"
         + args.site
         + "/"
     )
-    s3_path_ims = "s3://d3b-phi-data-prd/imaging/radiology/images4dl/"
+    s3_path_to_csv = os.path.join(s3_parent_bucket, args.mapping_csv)
     local_path = args.program + "/" + args.site
 
     # ====== validate the inputs ======
@@ -104,7 +111,7 @@ def run_pipeline(args) -> int:
     # validate that we have all the right info/mapping
     if args.validate:
         logger.info("Generating subject mapping for validation.")
-        validate_info(local_path, args.program, file_path)
+        validate_info(local_path, args.program, file_path, s3_path_to_csv)
 
     # run the pipeline
     if args.run_pipeline:
@@ -146,7 +153,7 @@ def run_pipeline(args) -> int:
 
         logger.info("Commencing de-identification process...")
         # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
-        run_deid(local_path, s3_path, args.program)
+        run_deid(local_path, s3_path_to_csv, args.program)
 
         logger.info('Uploading "safe" files to Flywheel...')
         os.system(
@@ -255,6 +262,12 @@ def main() -> int:
         default="chop",
         help="Site namespace.",
         required=True,
+    )
+    parser_run_pipeline.add_argument(
+        "--mapping_csv",
+        nargs="?",
+        default="cbtn-all_identified_2022-03-17.csv",
+        help="CSV file containing subject mapping. Expected to exist within S3_BUCKET path",
     )
     parser_run_pipeline.add_argument(
         "--run_pipeline",

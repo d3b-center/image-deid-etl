@@ -9,4 +9,3 @@ python-magic==0.4.25
 requests==2.27.1
 SQLAlchemy==1.4.32
 urllib3==1.26.8
-boto3==1.21.34

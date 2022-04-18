@@ -27,6 +27,7 @@ $ cp .env.sample .env
 Then, customize its contents with a text editor:
 
 - For `AWS_PROFILE`, follow [these](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html#sso-configure-profile) instructions to configure a named profile for yourself. Use https://d-906762f877.awsapps.com/start as the SSO start URL and `us-east-1` as the SSO region. Assign the name of the profile you create to the value for `AWS_PROFILE`.
+- For `S3_BUCKET`, specify the s3 bucket/path to read from.
 - For `FLYWHEEL_API_KEY`, generate an API key from your Flywheel user profile.
 - For `FLYWHEEL_GROUP`, specify either `d3b` or an alternative group created for testing (e.g., your name).
 - For `ORTHANC_CREDENTIALS`, use your Orthanc username and password specified like `username:password`.
