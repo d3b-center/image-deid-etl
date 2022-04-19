@@ -89,7 +89,6 @@ def run_pipeline(args) -> int:
         + args.site
         + "/"
     )
-    s3_path_ims = "s3://d3b-phi-data-prd/imaging/radiology/images4dl/"
     local_path = args.program + "/" + args.site
 
     # ====== validate the inputs ======
@@ -149,9 +148,13 @@ def run_pipeline(args) -> int:
         run_deid(local_path, s3_path, args.program)
 
         logger.info('Uploading "safe" files to Flywheel...')
-        os.system(
-            f"fw import folder --group {FLYWHEEL_GROUP} --skip-existing -y {args.program}/{args.site}/NIfTIs/"
-        )
+        source_path = f"{args.program}/{args.site}/NIfTIs/"
+        for fw_project in next(os.walk(source_path))[1]: # for each project dir
+            proj_path = os.path.join(source_path, fw_project)
+            os.system(
+                f'fw ingest folder --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}'
+            )
+
         logger.info("Injecting sidecar metadata...")
         inject_sidecar_metadata(FLYWHEEL_GROUP, local_path + "NIfTIs/")
 
@@ -162,19 +165,24 @@ def run_pipeline(args) -> int:
             logger.info(
                 "There are files to check in: " + local_path + "NIfTIs_to_check/"
             )
+            os.system("aws s3 sync " + local_path + "NIfTIs_to_check/ " + s3_path + "NIfTIs_to_check/")
         if os.path.exists(local_path + "NIfTIs_short_json/"):
             logger.info(
                 "There are files to check in: " + local_path + "NIfTIs_short_json/"
             )
+            os.system("aws s3 sync " + local_path + "NIfTIs_short_json/ " + s3_path + "NIfTIs_to_check/")
 
         logger.info("Updating list of UUIDs...")
         import_uuids_from_set(set(new_uuids))
 
     # ====== upload to Flywheel ========================
     if args.upload2fw:
-        os.system(
-            f"fw import folder --group {FLYWHEEL_GROUP} --skip-existing -y {args.program}/{args.site}/NIfTIs/"
-        )
+        source_path = f"{args.program}/{args.site}/NIfTIs/"
+        for fw_project in next(os.walk(source_path))[1]: # for each project dir
+            proj_path = os.path.join(source_path, fw_project)
+            os.system(
+                f'fw ingest folder --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}'
+            )
 
     if args.add_fw_metadata:
         # assumes local structure == Flywheel structure
@@ -182,10 +190,6 @@ def run_pipeline(args) -> int:
 
     if args.s3_backup_niftis:
         os.system("aws s3 sync " + local_path + "NIfTIs/ " + s3_path + "NIfTIs/")
-
-    if args.s3_backup_images:
-        os.system("aws s3 sync " + local_path + "JPGs/ " + s3_path_ims)
-        os.system("aws s3 sync " + local_path + "JPGs_3/ " + s3_path_ims)
 
     if args.delete_local:
         if os.path.exists(local_path + "DICOMs/"):
@@ -200,15 +204,6 @@ def run_pipeline(args) -> int:
         if os.path.exists(local_path + "NIfTIs_to_check/"):
             shutil.rmtree(local_path + "NIfTIs_to_check/")
             logger.info("Deleted from local: " + local_path + "NIfTIs_to_check/")
-        if os.path.exists(local_path + "JPGs/"):
-            shutil.rmtree(local_path + "JPGs/")
-            logger.info("Deleted from local: " + local_path + "JPGs/")
-        if os.path.exists(local_path + "JPGs_2/"):
-            shutil.rmtree(local_path + "JPGs_2/")
-            logger.info("Deleted from local: " + local_path + "JPGs_2/")
-        if os.path.exists(local_path + "JPGs_3/"):
-            shutil.rmtree(local_path + "JPGs_3/")
-            logger.info("Deleted from local: " + local_path + "JPGs_3/")
 
     return 0
 
@@ -285,11 +280,6 @@ def main() -> int:
         "--s3_backup_niftis",
         action="store_true",
         help="Copies NIfTIs to S3.",
-    )
-    parser_run_pipeline.add_argument(
-        "--s3_backup_images",
-        action="store_true",
-        help="Copies JPGs to S3.",
     )
     parser_run_pipeline.set_defaults(func=run_pipeline)
 

@@ -476,6 +476,7 @@ def structure_nifti_files(data_dir,sub_mapping,output_dir,program):
         accession_number = row['accession_num']
         study_desc = row['StudyDesc']
         study_desc = study_desc.replace('^', ' ')
+        study_desc = study_desc.replace('+', '')
         study_desc = study_desc.replace('& ', '')
         study_desc = study_desc.replace('&', '')
         study_desc = study_desc.replace('- ', '')
