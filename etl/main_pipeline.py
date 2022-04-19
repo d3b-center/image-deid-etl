@@ -17,19 +17,18 @@ def subject_info(local_path, program, file_dir, s3_path_to_csv, validate=0):
         sub_missing_c_ids=[]
         sub_missing_ses=[]
         sub_missing_proj=[]
+    # get Subject info table
+    try:
+        mapping_df = pd.read_csv(s3_path_to_csv)
+    except IndexError as error:
+        logger.error("Missing subject ID .csv file from s3: %r", error)
     if program == 'cbtn':
-        # get CBTN Subject IDs
         try:
-            cbtn_all_df = pd.read_csv(s3_path_to_csv)
-        except IndexError as error:
-            logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
-        try:
-            sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(cbtn_all_df,sub_info,local_path)
+            sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(mapping_df,sub_info,local_path)
         except ValueError as error:
             logger.error("Unable to get subject mapping without the images (program/site folder structure) present: %r", error)
     elif program == 'corsica':
-        corsica_fn='corsica_identified_mapping.csv'
-        sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_corsica(corsica_fn,sub_info,local_path,program,'Patient_Name') # MRN or Patient_Name
+        sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_corsica(mapping_df,sub_info,local_path,program,'Patient_Name') # MRN or Patient_Name
     if not sub_missing_c_ids.empty:
         output_fn = file_dir+'missing_subject_ids_'+todays_date+'.csv'
         logger.warning('      WARNING: Subject(s) with missing C-IDs found. Please check  '+output_fn)
@@ -42,7 +41,7 @@ def subject_info(local_path, program, file_dir, s3_path_to_csv, validate=0):
     logger.info('Getting target Flywheel projects.')
 #  get target Flywheel project based on diagnosis
     if program == 'cbtn':
-        sub_mapping,sub_missing_proj = get_fw_proj_cbtn(cbtn_all_df,sub_mapping)
+        sub_mapping,sub_missing_proj = get_fw_proj_cbtn(mapping_df,sub_mapping)
         if not sub_missing_proj.empty:
             output_fn = file_dir+'missing_diagnosis_'+todays_date+'.csv'
             logger.warning('      WARNING: Subject(s) not found in CBTN-all. Please check  '+output_fn)

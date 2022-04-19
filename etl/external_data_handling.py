@@ -5,8 +5,7 @@ from etl.custom_etl import *
 import pandas as pd
 import numpy as np
 
-def get_subject_mapping_corsica(mapping_fn,sub_info,data_dir,program,field_to_merge_on):
-    master_df = pd.read_csv(mapping_fn)
+def get_subject_mapping_corsica(master_df,sub_info,data_dir,program,field_to_merge_on):
     master_df = master_df[['SDG-ID','Last Name','First Name','MRN']].drop_duplicates()
     if field_to_merge_on == 'MRN':
         master_df['MRN'] = master_df['MRN'].apply(lambda row: round(int(row)) if not np.isnan(row)  else 0)
