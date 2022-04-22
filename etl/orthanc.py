@@ -145,35 +145,31 @@ def compare_s3_orthanc(orthanc_cred,orthanc_ip,orthanc_port,s3_path):
     else:
         return 0
 
-def download_study(orthanc_url,uuid,output_path):
-# download a single study archive to local disk based on uuid
-    os.system('curl -s -k '+orthanc_url+'/studies/'+uuid+'/archive > '+output_path)
 
-def download_unpack_copy(orthanc_url,s3_path,uuids,data_dir,ses_mod_to_skip):
-# downloads data from Orthanc based on list of uuids as "{uuid}.zip"
-#   copies .zip to s3/backup
-#   unpacks .zip & deletes it locally
-    processed=[]
+def download_unpack_copy(orthanc_url, uuid, data_dir, ses_mod_to_skip):
+    """Download and unpack a specified study from Orthanc"""
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
-    for uuid in uuids:
-        info = get_series_metadata(orthanc_url,uuid)
-        modality = info[0]['MainDicomTags']['Modality']
-        if (modality not in ses_mod_to_skip):
-            output_fn = uuid+'.zip'
-            output_path = data_dir+output_fn
-            ## download this archive
-            if not os.path.exists(output_path):
-                logger.info("Downloading study %s...", uuid)
-                download_study(orthanc_url, uuid, output_path)
-            else:
-                logger.info("Already downloaded study %s. Skipping download.", uuid)
-            ## unpack it
-            logger.info("Extracting study %s...", uuid)
-            with zipfile.ZipFile(output_path, 'r') as zip_ref:
-                zip_ref.extractall(data_dir)
-            processed.append(uuid)
-    return processed
+
+    info = get_series_metadata(orthanc_url,uuid)
+    modality = info[0]['MainDicomTags']['Modality']
+    if modality not in ses_mod_to_skip:
+        output_path = f"{data_dir}{uuid}.zip"
+
+        # Download the study archive from Orthanc.
+        if not os.path.exists(output_path):
+            logger.info("Downloading study %s...", uuid)
+            os.system(f"curl -s -k {orthanc_url}/studies/{uuid}/archive > {output_path}")
+        else:
+            logger.info("Already downloaded study %s. Skipping download.", uuid)
+
+        # Unpack the study archive.
+        logger.info("Extracting study %s...", uuid)
+        with zipfile.ZipFile(output_path, 'r') as zip_ref:
+            zip_ref.extractall(data_dir)
+    else:
+        # E.g., Skip digital radiography or ultrasound images.
+        logger.info("Not downloading study %s; skipping modality %s.", uuid, modality)
 
 # the following code is to upload a .zip to an Orthanc instance
 #   modified from: https://hg.orthanc-server.com/orthanc/file/Orthanc-1.9.7/OrthancServer/Resources/Samples/ImportDicomFiles/OrthancImport.py

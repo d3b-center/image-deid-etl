@@ -85,7 +85,7 @@ def validate_info(local_path, program, file_dir):
             sub_list=sub_missing_proj['accession_num'].unique().tolist()
             print('Accessions missing projects '+', '.join(sub_list))
 
-def run_deid(local_path, s3_path, program):
+def run_deid(local_path, program):
     file_dir = local_path+'files/'
     # The "files/" directory path needs to exist, otherwise subject_info will fail to write the csv files. Equivalent
     # to mkdir -p.
