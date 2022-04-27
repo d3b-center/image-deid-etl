@@ -5,18 +5,10 @@ from glob import glob
 
 import flywheel
 
-from etl.exceptions import ImproperlyConfigured
-
-FLYWHEEL_API_KEY = os.getenv('FLYWHEEL_API_KEY')
-
-if FLYWHEEL_API_KEY is None:
-    raise ImproperlyConfigured("You must supply a FLYWHEEL_API_KEY.")
-
-fw = flywheel.Client(FLYWHEEL_API_KEY)
-
 logger = logging.getLogger(__name__)
 
-def inject_sidecar_metadata(flywheel_group, data_dir):
+
+def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, data_dir: str):
     json_files = glob(data_dir+'*/*/*/*/*.json')
     for file in json_files:
         path_to_acq = '/'.join(file.split('/')[3:-1]) # use local dir structure to perform lookup of acq container on Flywheel
@@ -26,7 +18,7 @@ def inject_sidecar_metadata(flywheel_group, data_dir):
         path_to_acq = path_to_acq.replace('?','_')
         if (path_to_acq[-1] == '.'):
             path_to_acq = path_to_acq[0:-1]
-        acq = fw.lookup(f"{flywheel_group}/{path_to_acq}")
+        acq = fw_client.lookup(f"{flywheel_group}/{path_to_acq}")
         ## get nifti container w/in this acquisition
         nii_cntr=[]
         base = os.path.basename(file)

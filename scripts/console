@@ -1,0 +1,4 @@
+#!/bin/bash
+
+docker-compose \
+  run --entrypoint bash --rm image-deid-etl

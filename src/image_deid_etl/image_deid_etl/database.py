@@ -5,9 +5,9 @@ from sqlalchemy import text
 from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.schema import Column, MetaData, Table
-from sqlalchemy.types import String
+from sqlalchemy.types import CHAR
 
-from etl.exceptions import ImproperlyConfigured
+from image_deid_etl.exceptions import ImproperlyConfigured
 
 # Configure the connection to our data store.
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -27,7 +27,10 @@ def create_schema() -> None:
     processed_uuids = Table(
         "processed_uuids",
         metadata_obj,
-        Column("uuid", String(36), primary_key=True),
+        # Orthanc uses the term "UUID" when referring to a study, but this is
+        # misleading. Orthanc actually derives identifiers from an SHA-1 hash.
+        # https://github.com/jodogne/OrthancMirror/blob/305b1798a9c90adc128fcbcdd6a357fa9a547498/OrthancFramework/Sources/Toolbox.cpp#L750-L775
+        Column("uuid", CHAR(45), primary_key=True),
     )
 
     metadata_obj.create_all(engine)

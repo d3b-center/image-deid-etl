@@ -8,6 +8,7 @@
 
 # Python
 __pycache__
+*.egg-info
 
 # Application State
 cbtn

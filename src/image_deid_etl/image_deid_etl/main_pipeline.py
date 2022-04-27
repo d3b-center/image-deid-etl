@@ -4,8 +4,8 @@ import boto3
 import pandas as pd
 import io
 
-from etl.external_data_handling import *
-from etl.images_no_save import *
+from image_deid_etl.external_data_handling import *
+from image_deid_etl.images_no_save import *
 
 logger = logging.getLogger(__name__)
 

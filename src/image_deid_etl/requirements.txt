@@ -1,12 +1,13 @@
 flywheel-sdk==15.8.0
 nibabel==3.2.2
 numpy==1.22.3
-opencv-python==4.5.5.64
+opencv-python-headless==4.5.5.64
 pandas==1.4.2
 pillow==9.0.1
+psycopg2==2.9.3
 pydicom==2.2.2
 python-magic==0.4.25
 requests==2.27.1
-SQLAlchemy==1.4.32
+sqlalchemy==1.4.32
 urllib3==1.26.8
 boto3==1.21.34
