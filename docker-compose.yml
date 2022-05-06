@@ -1,0 +1,29 @@
+services:
+  database:
+    image: postgres:14.2
+    environment:
+      - POSTGRES_DB=image-deid-etl
+      - POSTGRES_PASSWORD=image-deid-etl
+      - POSTGRES_USER=image-deid-etl
+    healthcheck:
+      test: pg_isready -U image-deid-etl
+      interval: 3s
+      timeout: 3s
+      retries: 3
+
+  image-deid-etl:
+    image: image-deid-etl
+    build: ./src/image_deid_etl
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://image-deid-etl:image-deid-etl@database:5432/image-deid-etl
+      - IMAGE_DEID_ETL_LOG_LEVEL=INFO
+    volumes:
+      - ./src/image_deid_etl:/usr/local/src
+      - $HOME/.aws:/root/.aws
+      # Prevents Docker from overwriting the .egg-info directory.
+      - /usr/local/src/image_deid_etl.egg-info
+    working_dir: /usr/local/src
+    depends_on:
+      database:
+        condition: service_healthy

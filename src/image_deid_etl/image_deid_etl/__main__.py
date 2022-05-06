@@ -1,24 +1,34 @@
-#!/usr/bin/env python
 import argparse
 import json
 import logging.config
 import os
 import sys
+import tempfile
 
+import flywheel
 from sqlalchemy.exc import IntegrityError
 
-from etl.custom_etl import delete_acquisitions_by_modality, delete_sessions
-from etl.custom_flywheel import inject_sidecar_metadata
-from etl.database import create_schema, import_uuids_from_set, get_all_processed_uuids
-from etl.exceptions import ImproperlyConfigured
-from etl.main_pipeline import validate_info, run_deid
-from etl.orthanc import get_orthanc_url, get_uuids, download_unpack_copy
+from image_deid_etl.custom_etl import delete_acquisitions_by_modality, delete_sessions
+from image_deid_etl.custom_flywheel import inject_sidecar_metadata
+from image_deid_etl.database import (
+    create_schema,
+    import_uuids_from_set,
+    get_all_processed_uuids,
+)
+from image_deid_etl.exceptions import ImproperlyConfigured
+from image_deid_etl.main_pipeline import validate_info, run_deid
+from image_deid_etl.orthanc import get_orthanc_url, get_uuids, download_unpack_copy
+
+FLYWHEEL_API_KEY = os.getenv("FLYWHEEL_API_KEY")
+if FLYWHEEL_API_KEY is None:
+    raise ImproperlyConfigured("You must supply a FLYWHEEL_API_KEY.")
 
 FLYWHEEL_GROUP = os.getenv("FLYWHEEL_GROUP")
 if FLYWHEEL_GROUP is None:
     raise ImproperlyConfigured(
         "You must supply a valid Flywheel group in FLYWHEEL_GROUP."
     )
+
 
 # Configure Python's logging module. The Django project does a fantastic job explaining how logging works:
 # https://docs.djangoproject.com/en/4.0/topics/logging/
@@ -149,20 +159,38 @@ def run(args) -> int:
 
 
 def upload2fw(args) -> int:
-    source_path = f"{args.program}/{args.site}/NIfTIs/"
-    for fw_project in next(os.walk(source_path))[1]:  # for each project dir
-        proj_path = os.path.join(source_path, fw_project)
-        os.system(
-            f"fw ingest folder --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}"
-        )
+    # This is a hack so that the Flywheel CLI can consume credentials
+    # from the environment.
+    with tempfile.TemporaryDirectory() as flywheel_user_home:
+        logger.info(f"Writing fake Flywheel CLI credentials to {flywheel_user_home}...")
+        # The Flywheel CLI will look for its config directory at this path.
+        os.putenv("FLYWHEEL_USER_HOME", flywheel_user_home)
+        # Create the fake config directory.
+        os.makedirs(f"{flywheel_user_home}/.config/flywheel/", exist_ok=True)
+        # Write our Flywheel credentials to JSON in the config directory.
+        with open(f"{flywheel_user_home}/.config/flywheel/user.json", "w") as f:
+            json.dump({"key": FLYWHEEL_API_KEY, "root": False}, f, ensure_ascii=False)
 
+        source_path = f"{args.program}/{args.site}/NIfTIs/"
+
+        if not os.path.exists(source_path):
+            # It appears that this can happen when sub_mapping is empty.
+            raise FileNotFoundError(f"{source_path} directory does not exist.")
+
+        for fw_project in next(os.walk(source_path))[1]:  # for each project dir
+            proj_path = os.path.join(source_path, fw_project)
+            os.system(
+                f"fw ingest folder --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}"
+            )
     return 0
 
 
 def add_fw_metadata(args) -> int:
     local_path = f"{args.program}/{args.site}/"
 
-    inject_sidecar_metadata(FLYWHEEL_GROUP, local_path + "NIfTIs/")
+    fw_client = flywheel.Client(FLYWHEEL_API_KEY)
+
+    inject_sidecar_metadata(fw_client, FLYWHEEL_GROUP, local_path + "NIfTIs/")
 
     return 0
 
@@ -193,6 +221,8 @@ def main() -> int:
         default="chop",
         help="site namespace",
     )
+    parser.set_defaults(func=lambda x: parser.print_usage())
+
     subparsers = parser.add_subparsers()
 
     parser_initdb = subparsers.add_parser("initdb")
@@ -262,9 +292,7 @@ def main() -> int:
     parser_s3_backup_niftis.set_defaults(func=s3_backup_niftis)
 
     args = parser.parse_args()
-    args.func(args)
-
-    return 0
+    return args.func(args)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ from glob import glob
 from statistics import mode
 import shutil
 import pandas as pd
-from custom_etl import delete_empty_dirs
+from image_deid_etl.custom_etl import delete_empty_dirs
 import magic
 
 def get_dicom_tags(data_dir):

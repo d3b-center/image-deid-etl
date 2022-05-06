@@ -1,7 +1,7 @@
 # functions for handling data from external sites
 #
 #   All output subject IDs should fall under a column labeled 'Subject ID' (otherwise need to modify structure_nifti_files later on)
-from etl.custom_etl import *
+from image_deid_etl.custom_etl import *
 import pandas as pd
 import numpy as np
 

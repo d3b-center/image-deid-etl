@@ -8,7 +8,7 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from etl.exceptions import ImproperlyConfigured
+from image_deid_etl.exceptions import ImproperlyConfigured
 
 logger = logging.getLogger(__name__)
 
