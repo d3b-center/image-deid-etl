@@ -48,6 +48,13 @@ def get_uuids_from_mrn(orthanc_url,mrn):
     resp = requests.post(orthanc_url+'/tools/find', data=data_json, verify=False)
     return resp.json()
 
+def get_patient_uuid_from_mrn(orthanc_url, mrn):
+    data = {'Level':'Patient',
+            'Query':{'PatientID':str(mrn)} }
+    data_json = json.dumps(data)
+    resp = requests.post(orthanc_url+'/tools/find', data=data_json, verify=False)
+    return resp.json()
+
 def get_uuids(orthanc_url,accession_df,in_type):
     out_list = []
     missing_list=[]

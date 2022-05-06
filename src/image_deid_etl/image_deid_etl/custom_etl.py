@@ -7,6 +7,9 @@ from datetime import date
 import json
 import shutil
 from dateutil.parser import parse
+from image_deid_etl.orthanc import get_orthanc_url,get_patient_metadata,get_patient_uuid_from_mrn
+
+orthanc_url = get_orthanc_url()
 
 def move_suspicious_files(file_list,out_dir):
 # move files that don't match the expected data type for images
@@ -228,6 +231,19 @@ def get_dicom_fields(data_dir):
                 req_proc.append(req_proc_desc)
                 perf_proc.append(perf_proc_desc)
                 study.append(study_desc)
+    # fix any empty lists of lists that can happen when processing 1 study
+    if (len(accession_numbers)==1) and (accession_numbers[0]==[]):
+        accession_numbers=''
+    elif (len(dobs)==1) and (dobs[0]==[]):
+        dobs=''
+    elif (len(events)==1) and (events[0]==[]):
+        events=''
+    elif (len(req_proc)==1) and (req_proc[0]==[]):
+        req_proc=''
+    elif (len(perf_proc)==1) and (perf_proc[0]==[]):
+        perf_proc=''
+    elif (len(study)==1) and (study[0]==[]):
+        study=''
     return pd.DataFrame({'accession_num': accession_numbers,\
                             'DOB':dobs, \
                             'ImagingDate':events, \
@@ -243,33 +259,46 @@ def split_missing_values(input_df,col_name):
 
 def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
     # map MRN to C-ID
-    cbtn_df = cbtn_df[['CBTN Subject ID','MRN','First Name','Last Name']].drop_duplicates()
+    cbtn_df_sub = cbtn_df[['CBTN Subject ID','MRN','First Name','Last Name']].drop_duplicates()
     sub_info['mrn'] = sub_info['mrn'].astype(str)
-    cbtn_df['MRN']  = cbtn_df['MRN'].astype(str)
+    cbtn_df_sub['MRN']  = cbtn_df_sub['MRN'].astype(str)
     sub_info['first_name'] = sub_info['first_name'].astype(str).str.lower()
     sub_info['last_name'] = sub_info['last_name'].astype(str).str.lower()
-    cbtn_df['First Name'] = cbtn_df['First Name'].astype(str).str.lower()
-    cbtn_df['Last Name'] = cbtn_df['Last Name'].astype(str).str.lower()
-    sub_df = pd.merge(sub_info,cbtn_df,how='left',left_on=['mrn'],right_on=['MRN'])
+    cbtn_df_sub['First Name'] = cbtn_df_sub['First Name'].astype(str).str.lower()
+    cbtn_df_sub['Last Name'] = cbtn_df_sub['Last Name'].astype(str).str.lower()
+    sub_df = pd.merge(sub_info, cbtn_df_sub, how='left', left_on=['mrn'], right_on=['MRN'])
     # if any are still missing C-ID, try FirstName/LastName
     sub_df,missing_c_ids = split_missing_values(sub_df,'CBTN Subject ID')
     if not missing_c_ids.empty:
-        sub_df2 = pd.merge(missing_c_ids,cbtn_df,how='left',left_on=['last_name','first_name'],right_on=['Last Name','First Name'])
+        sub_df2 = pd.merge(missing_c_ids,cbtn_df_sub,how='left',left_on=['last_name','first_name'],right_on=['Last Name','First Name'])
         sub_df = pd.concat([sub_df,sub_df2],ignore_index=True)
     # get the session labels based on DICOM fields
     dicom_info = get_dicom_fields(data_dir)
     sub_df = pd.merge(sub_df,dicom_info,on='accession_num') # assumes there are accession #s for all rows in both df's
     if len(sub_df) > 1:
         sub_df = sub_df.loc[sub_df.astype(str).drop_duplicates().index]
-    # split row's w/o DOB
-    subs_no_dob = sub_df[sub_df['DOB'].isnull()]
-    sub_df = sub_df[~sub_df['DOB'].isnull()]
-    if not subs_no_dob.empty:
-        cbtn_df = cbtn_df[['CBTN Subject ID','DOB']]
-        subs_no_dob = subs_no_dob.drop(columns='DOB')
-        subs_no_dob = pd.merge(subs_no_dob,cbtn_df,how='left')
-        subs_no_dob['DOB'] = subs_no_dob.DOB.apply(lambda row: datetime.strptime(row, '%m/%d/%y'))
-        sub_df = pd.concat([subs_no_dob, sub_df], ignore_index=True)
+    # if there are subjects missing DOB, try to fill values from other studies on Orthanc
+    if (not sub_df[sub_df['DOB']==''].empty):
+        for ind, row in sub_df.iterrows():
+            if (row['DOB']==''):
+                dob = []
+                patient_mrn = mrn_append_zeros([str(row['MRN'])])[0]
+                patient_uuid = get_patient_uuid_from_mrn(orthanc_url, patient_mrn)
+                patient_metadata = get_patient_metadata(orthanc_url, patient_uuid[0])
+                try:
+                    dob = patient_metadata['MainDicomTags']['PatientBirthDate']
+                except:
+                    dob = []
+                if len(dob) > 0:
+                    sub_df.at[ind, 'DOB'] = datetime.strptime(dob, '%Y%m%d')
+    # if STILL missing, use the one from cbtn-all table
+    if (not sub_df[sub_df['DOB'] == ''].empty):
+        for ind, row in sub_df.iterrows():
+            if (row['DOB'] == ''):
+                c_id = row['CBTN Subject ID']
+                sub_rows = cbtn_df[cbtn_df['CBTN Subject ID'] == c_id]
+                dob = sub_rows['DOB'].tolist()[0]
+                sub_df.at[ind, 'DOB'] = datetime.strptime(dob, '%m/%d/%y')
     # fix empty descriptions
     sub_df.loc[sub_df['PerformedProcDesc'].astype(str)=="[]",["PerformedProcDesc"]]=' '
     sub_df.loc[sub_df['StudyDesc'].astype(str)=="[]",["StudyDesc"]]=' '
