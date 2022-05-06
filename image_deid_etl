@@ -3,8 +3,9 @@ import argparse
 import json
 import logging.config
 import os
-import shutil
 import sys
+
+from sqlalchemy.exc import IntegrityError
 
 from etl.custom_etl import delete_acquisitions_by_modality, delete_sessions
 from etl.custom_flywheel import inject_sidecar_metadata
@@ -70,19 +71,26 @@ def import_uuids(args) -> int:
 
 
 def check(args) -> int:
-    new_uuids, missing_list, input_df = get_uuids(
-        get_orthanc_url(), get_all_processed_uuids(), "all"
-    )
-    if new_uuids:
-        logger.info("%d new studies found on Orthanc.", len(new_uuids))
+    new_uuids, _, _ = get_uuids(get_orthanc_url(), get_all_processed_uuids(), "all")
 
-        # Useful for local development. Allows you to mark all new studies as
-        # processed, so the ETL doesn't try to process anything.
-        if args.mark_processed:
-            import_uuids_from_set(set(new_uuids))
-            logger.info("Marked %d new studies as \"processed.\"", len(new_uuids))
+    # There is no guarantee that these UUIDs will be in any particular order,
+    # only that they are unprocessed.
+    if args.limit:
+        new_uuids = new_uuids[: args.limit]
+
+    if args.raw:
+        print(*new_uuids, sep="\n")
     else:
-        logger.info("No new UUIDs found on Orthanc")
+        if new_uuids:
+            logger.info("%d new studies found on Orthanc.", len(new_uuids))
+
+            # Useful for local development. Allows you to mark all new studies as
+            # processed, so the ETL doesn't try to process anything.
+            if args.mark_processed:
+                import_uuids_from_set(set(new_uuids))
+                logger.info('Marked %d new studies as "processed."', len(new_uuids))
+        else:
+            logger.info("No new UUIDs found on Orthanc.")
 
     return 0
 
@@ -99,125 +107,85 @@ def run_pipeline(args) -> int:
     s3_path_to_csv = os.path.join(s3_parent_bucket, args.mapping_csv)
     local_path = args.program + "/" + args.site
 
-    # ====== validate the inputs ======
-    if local_path[-1:] != "/":
-        local_path = local_path + "/"
-
-    if s3_path[-1:] != "/":
-        s3_path = s3_path + "/"
-
-    file_path = local_path + "files/"
-
-    # validate that we have all the right info/mapping
-    if args.validate:
-        logger.info("Generating subject mapping for validation.")
-        validate_info(local_path, args.program, file_path, s3_path_to_csv)
-
-    # run the pipeline
-    if args.run_pipeline:
-        ## ************** download studies from Orthanc **************
-        max_studies = 40
-        logger.info("Checking for new UUIDs.")
-        orthanc_url = get_orthanc_url()
-        new_uuids, missing_list, input_df = get_uuids(
-            orthanc_url, get_all_processed_uuids(), "all"
-        )
-        if len(new_uuids) > max_studies:
-            new_uuids = new_uuids[0 : (max_studies - 1)]
-        ##  ************** if there are new uuids, download & prep files **************
-        if new_uuids:
-            logger.info(
-                "Found new UUID(s) Orthanc, beginning to download %d new studies (max_studies = %d).",
-                len(new_uuids),
-                max_studies,
-            )
-            session_modality_to_skip = ["DX", "US"]  # DX=XR
-            download_unpack_copy(
-                orthanc_url,
-                s3_path,
-                new_uuids,
-                local_path + "DICOMs/",
-                session_modality_to_skip,
-            )
-            ## remove any acquisitions/sessions that we don't want to process
-            delete_acquisitions_by_modality(local_path + "DICOMs/", "OT")
-            delete_acquisitions_by_modality(local_path + "DICOMs/", "SR")
-            delete_sessions(
-                local_path + "DICOMs/", "script"
-            )  # delete any "script" sessions
-            delete_sessions(local_path + "DICOMs/", "Bone Scan")
-            # delete_sessions_by_modality(local_path+'DICOMs/','XR') # delete X-rays
-            # delete_sessions_by_modality(local_path+'DICOMs/','US') # delete ultrasounds
-        else:
-            logger.info("No UUIDs found in Orthanc.")
-
-        logger.info("Commencing de-identification process...")
-        # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
-        run_deid(local_path, s3_path_to_csv, args.program)
-
-        logger.info('Uploading "safe" files to Flywheel...')
-        os.system(
-            f"fw import folder --group {FLYWHEEL_GROUP} --skip-existing -y {args.program}/{args.site}/NIfTIs/"
-        )
-        logger.info("Injecting sidecar metadata...")
-        inject_sidecar_metadata(FLYWHEEL_GROUP, local_path + "NIfTIs/")
-
-        logger.info("Backing up NIfTIs to S3...")
-        os.system("aws s3 sync " + local_path + "NIfTIs/ " + s3_path + "NIfTIs/")
-        logger.info("DONE PROCESSING STUDIES")
-        if os.path.exists(local_path + "NIfTIs_to_check/"):
-            logger.info(
-                "There are files to check in: " + local_path + "NIfTIs_to_check/"
-            )
-        if os.path.exists(local_path + "NIfTIs_short_json/"):
-            logger.info(
-                "There are files to check in: " + local_path + "NIfTIs_short_json/"
-            )
-
-        logger.info("Updating list of UUIDs...")
-        import_uuids_from_set(set(new_uuids))
-
-    # ====== upload to Flywheel ========================
-    if args.upload2fw:
-        os.system(
-            f"fw import folder --group {FLYWHEEL_GROUP} --skip-existing -y {args.program}/{args.site}/NIfTIs/"
-        )
-
-    if args.add_fw_metadata:
-        # assumes local structure == Flywheel structure
-        inject_sidecar_metadata(FLYWHEEL_GROUP, local_path + "NIfTIs/")
-
-    if args.s3_backup_niftis:
-        os.system("aws s3 sync " + local_path + "NIfTIs/ " + s3_path + "NIfTIs/")
-
-    if args.s3_backup_images:
-        os.system("aws s3 sync " + local_path + "JPGs/ " + s3_path_ims)
-        os.system("aws s3 sync " + local_path + "JPGs_3/ " + s3_path_ims)
-
-    if args.delete_local:
-        if os.path.exists(local_path + "DICOMs/"):
-            shutil.rmtree(local_path + "DICOMs/")
-            logger.info("Deleted from local: " + local_path + "DICOMs/")
-        if os.path.exists(local_path + "NIfTIs/"):
-            shutil.rmtree(local_path + "NIfTIs/")
-            logger.info("Deleted from local: " + local_path + "NIfTIs/")
-        if os.path.exists(local_path + "NIfTIs_short_json/"):
-            shutil.rmtree(local_path + "NIfTIs_short_json/")
-            logger.info("Deleted from local: " + local_path + "NIfTIs_short_json/")
-        if os.path.exists(local_path + "NIfTIs_to_check/"):
-            shutil.rmtree(local_path + "NIfTIs_to_check/")
-            logger.info("Deleted from local: " + local_path + "NIfTIs_to_check/")
-        if os.path.exists(local_path + "JPGs/"):
-            shutil.rmtree(local_path + "JPGs/")
-            logger.info("Deleted from local: " + local_path + "JPGs/")
-        if os.path.exists(local_path + "JPGs_2/"):
-            shutil.rmtree(local_path + "JPGs_2/")
-            logger.info("Deleted from local: " + local_path + "JPGs_2/")
-        if os.path.exists(local_path + "JPGs_3/"):
-            shutil.rmtree(local_path + "JPGs_3/")
-            logger.info("Deleted from local: " + local_path + "JPGs_3/")
+    # Validate that we have all the right info/mapping
+    logger.info("Generating subject mapping for validation.")
+    validate_info(local_path, args.program, file_path)
 
     return 0
+
+
+def run(args) -> int:
+    local_path = f"{args.program}/{args.site}/"
+
+    for uuid in args.uuid:
+        download_unpack_copy(
+            get_orthanc_url(),
+            uuid,
+            local_path + "DICOMs/",
+            args.skip_modalities,
+        )
+
+    # Remove any acquisitions/sessions that we don't want to process.
+    delete_acquisitions_by_modality(local_path + "DICOMs/", "OT")
+    delete_acquisitions_by_modality(local_path + "DICOMs/", "SR")
+
+    # Delete any "script" sessions
+    delete_sessions(local_path + "DICOMs/", "script")
+    delete_sessions(local_path + "DICOMs/", "Bone Scan")
+
+    # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
+    logger.info("Commencing de-identification process...")
+    run_deid(local_path, args.program)
+
+    logger.info('Uploading "safe" files to Flywheel...')
+    upload2fw(args)
+
+    logger.info("Injecting sidecar metadata...")
+    add_fw_metadata(args)
+
+    logger.info("DONE PROCESSING STUDIES")
+    if os.path.exists(local_path + "NIfTIs_to_check/"):
+        logger.info("There are files to check in: " + local_path + "NIfTIs_to_check/")
+    if os.path.exists(local_path + "NIfTIs_short_json/"):
+        logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
+
+    try:
+        logger.info("Updating list of UUIDs...")
+        import_uuids_from_set(args.uuid)
+    except IntegrityError as error:
+        logger.error(
+            "Unable to mark %d UUID(s) as processed. The UUID(s) already exist in the database: %r",
+            len(args.uuid),
+            error,
+        )
+
+    return 0
+
+
+def upload2fw(args) -> int:
+    source_path = f"{args.program}/{args.site}/NIfTIs/"
+    for fw_project in next(os.walk(source_path))[1]:  # for each project dir
+        proj_path = os.path.join(source_path, fw_project)
+        os.system(
+            f"fw ingest folder --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}"
+        )
+
+    return 0
+
+
+def add_fw_metadata(args) -> int:
+    local_path = f"{args.program}/{args.site}/"
+
+    inject_sidecar_metadata(FLYWHEEL_GROUP, local_path + "NIfTIs/")
+
+    return 0
+
+
+def s3_backup_niftis(args) -> int:
+    local_path = f"{args.program}/{args.site}/"
+    s3_path = f"s3://d3b-phi-data-prd/imaging/radiology/{args.program}/{args.site}/"
+
+    return os.system("aws s3 sync " + local_path + "NIfTIs/ " + s3_path + "NIfTIs/")
 
 
 def main() -> int:
@@ -226,6 +194,19 @@ def main() -> int:
         "images, and uploading to Flywheel.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser.add_argument(
+        "--program",
+        nargs="?",
+        default="cbtn",
+        choices=["cbtn", "corsica"],
+        help="program namespace",
+    )
+    parser.add_argument(
+        "--site",
+        nargs="?",
+        default="chop",
+        help="site namespace",
+    )
     subparsers = parser.add_subparsers()
 
     parser_initdb = subparsers.add_parser("initdb")
@@ -233,78 +214,74 @@ def main() -> int:
 
     parser_import_uuids = subparsers.add_parser("importuuids")
     parser_import_uuids.add_argument(
-        "uuid_file",
+        "file",
         type=argparse.FileType("r"),
-        help="JSON file containing Orthanc UUIDs to process.",
+        help="JSON file containing Orthanc UUIDs to process",
     )
     parser_import_uuids.set_defaults(func=import_uuids)
 
     parser_check = subparsers.add_parser("check")
     parser_check.add_argument(
+        "-l",
+        "--limit",
+        type=int,
+        help="only use the last NUM UUIDs, instead of all UUIDs",
+    )
+    parser_check.add_argument(
         "--mark-processed",
         action="store_true",
-        help="Mark all Orthanc UUIDs found as \"processed.\"",
-    )
-    parser_check.set_defaults(func=check)
-
-    parser_run_pipeline = subparsers.add_parser("run_pipeline")
-    parser_run_pipeline.add_argument(
-        "--program",
-        nargs="?",
-        default="cbtn",
-        choices=["cbtn", "corsica"],
-        required=True,
-        help="Program namespace.",
-    )
-    parser_run_pipeline.add_argument(
-        "--site",
-        nargs="?",
-        default="chop",
-        help="Site namespace.",
-        required=True,
+        help="mark all Orthanc UUIDs found as processed",
     )
     parser_run_pipeline.add_argument(
         "--mapping_csv",
         nargs="?",
-        default="cbtn-all_identified_2022-03-17.csv",
+        default="cbtn-all_identified_2022-05-03.csv",
         help="CSV file containing subject mapping. Expected to exist within S3_BUCKET path",
     )
     parser_run_pipeline.add_argument(
         "--run_pipeline",
+    parser_check.add_argument(
+        "-r",
+        "--raw",
         action="store_true",
-        help='Run the pipeline & upload "safe" files.',
+        help="returns a newline-delimited list of unprocessed UUIDs",
     )
-    parser_run_pipeline.add_argument(
-        "--delete_local",
-        action="store_true",
-        help="Delete files off EC2.",
+    parser_check.set_defaults(func=check)
+
+    parser_validate = subparsers.add_parser("validate", help="check sub/ses mapping")
+    parser_validate.set_defaults(func=validate)
+
+    parser_run = subparsers.add_parser(
+        "run",
+        help="download images and run deidentification",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_run_pipeline.add_argument(
-        "--validate",
-        action="store_true",
-        help="Check sub/ses mapping.",
+    parser_run.add_argument(
+        "--skip-modalities",
+        nargs="*",
+        default=["DX", "US"],
+        help="space-delimited list of modalities to skip",
     )
-    parser_run_pipeline.add_argument(
-        "--upload2fw",
-        action="store_true",
-        help="Upload results to Flywheel, when complete.",
+    parser_run.add_argument(
+        "uuid", nargs="+", help="space-delimited list of UUIDs to process"
     )
-    parser_run_pipeline.add_argument(
-        "--add_fw_metadata",
-        action="store_true",
-        help="Add metadata in JSON sidecars to NIfTIs on Flywheel.",
+    parser_run.set_defaults(func=run)
+
+    parser_upload2fw = subparsers.add_parser(
+        "upload2fw",
+        help="upload results to Flywheel, when complete",
     )
-    parser_run_pipeline.add_argument(
-        "--s3_backup_niftis",
-        action="store_true",
-        help="Copies NIfTIs to S3.",
+    parser_upload2fw.set_defaults(func=upload2fw)
+
+    parser_add_fw_metadata = subparsers.add_parser(
+        "add-fw-metadata", help="add metadata in JSON sidecars to NIfTIs on Flywheel"
     )
-    parser_run_pipeline.add_argument(
-        "--s3_backup_images",
-        action="store_true",
-        help="Copies JPGs to S3.",
+    parser_add_fw_metadata.set_defaults(func=add_fw_metadata)
+
+    parser_s3_backup_niftis = subparsers.add_parser(
+        "s3-backup-niftis", help="copies NIfTIs to S3"
     )
-    parser_run_pipeline.set_defaults(func=run_pipeline)
+    parser_s3_backup_niftis.set_defaults(func=s3_backup_niftis)
 
     args = parser.parse_args()
     args.func(args)
