@@ -503,29 +503,8 @@ def structure_nifti_files(data_dir,sub_mapping,output_dir,program):
         # move the files
         ## included study description b/c accession #s can be duplicated across sessions, want to keep them split
         accession_number = row['accession_num']
-        study_desc = row['StudyDesc']
-        study_desc = study_desc.replace('^', ' ')
-        study_desc = study_desc.replace('+', '')
-        study_desc = study_desc.replace('& ', '')
-        study_desc = study_desc.replace('&', '')
-        study_desc = study_desc.replace('- ', '')
-        study_desc = study_desc.replace('PT/CT', 'PTCT')
-        study_desc = study_desc.replace('-', '')
-        study_desc = study_desc.replace('/', '')
-        study_desc = study_desc.replace('(', '')
-        study_desc = study_desc.replace(')', '')
-        study_desc = study_desc.replace('  ', ' ')
-        dicom_ses_label = accession_number+' '+study_desc
-        # print(c_id)
-        # print(session)
-        # print(session_list)
-        # print(dicom_ses_label)
-        try:
-            data_path = [i for i in session_list if dicom_ses_label in i][0] # source path for this session
-        except:
-            study_desc = study_desc.replace('W O', 'WO')
-            dicom_ses_label = accession_number+' '+study_desc
-            data_path = [i for i in session_list if dicom_ses_label in i][0] # source path for this session
+        dicom_ses_label = accession_number
+        data_path = [i for i in session_list if dicom_ses_label in i][0] # source path for this session
         acq_list = glob(data_path+'/*')
         # for each acquisition, construct the acquisition label based on sidecar info
         # print(acq_list)
