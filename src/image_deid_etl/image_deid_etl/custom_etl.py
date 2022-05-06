@@ -112,9 +112,10 @@ def get_body_part_examined(desc):
     if 'shoulder' in desc.lower():
         abbrv.append('Sh')
         parts.append('shoulder')
-    if 'skull base to mid thigh' in desc.lower():
+    if ('skull base to mid thigh' in desc.lower()) or \
+        ('hip' in desc.lower()):
         abbrv.append('Bo')
-        parts.append('Body')        
+        parts.append('Body')
     if abbrv==[]:
         return []
     else:
