@@ -16,6 +16,7 @@ def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, dat
         path_to_acq = path_to_acq.replace('>','_')
         path_to_acq = path_to_acq.replace(':','_')
         path_to_acq = path_to_acq.replace('?','_')
+        path_to_acq = path_to_acq.replace('*','star')
         if (path_to_acq[-1] == '.'):
             path_to_acq = path_to_acq[0:-1]
         acq = fw_client.lookup(f"{flywheel_group}/{path_to_acq}")
