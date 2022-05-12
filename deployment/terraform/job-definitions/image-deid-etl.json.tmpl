@@ -1,0 +1,51 @@
+{
+    "image": "${image_url}",
+    "vcpus": ${image_deid_etl_vcpus},
+    "memory": ${image_deid_etl_memory},
+    "environment": [
+        {
+          "name": "DATABASE_URL",
+          "value": "${database_url}"
+        },
+        {
+            "name": "FLYWHEEL_API_KEY",
+            "value": "${flywheel_api_key}"
+        },
+        {
+            "name": "FLYWHEEL_GROUP",
+            "value": "${flywheel_group}"
+        },
+        {
+            "name": "ORTHANC_CREDENTIALS",
+            "value": "${orthanc_credentials}"
+        },
+        {
+            "name": "ORTHANC_HOST",
+            "value": "${orthanc_host}"
+        },
+        {
+            "name": "ORTHANC_PORT",
+            "value": "${orthanc_port}"
+        },
+        {
+            "name": "IMAGE_DEID_ETL_LOG_LEVEL",
+            "value": "${image_deid_etl_log_level}"
+        }
+    ],
+    "volumes": [
+        {
+            "host": {
+                "sourcePath": "/media/ephemeral0"
+            },
+            "name": "ephemeral0"
+        }
+    ],
+    "mountPoints": [
+        {
+            "containerPath": "/tmp",
+            "readOnly": false,
+            "sourceVolume": "ephemeral0"
+        }
+    ],
+    "privileged": false
+}
