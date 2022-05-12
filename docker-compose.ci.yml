@@ -1,4 +1,7 @@
 services:
+  image-deid-etl:
+    image: image-deid-etl:${GIT_COMMIT:-latest}
+
   terraform:
     image: ghcr.io/d3b-center/terraform:1.1.9
     volumes:

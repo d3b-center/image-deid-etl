@@ -13,11 +13,21 @@ Execute Terraform subcommands with remote state management.
 "
 }
 
+if [[ -n "${GIT_COMMIT}" ]]; then
+    GIT_COMMIT="${GIT_COMMIT:0:7}"
+else
+    GIT_COMMIT="$(git rev-parse --short HEAD)"
+fi
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     if [[ "${1:-}" == "--help" ]]; then
         usage
     else
         TERRAFORM_DIR="$(dirname "$0")/../deployment/terraform"
+        echo
+        echo "Attempting to deploy application version [${GIT_COMMIT}]..."
+        echo "-----------------------------------------------------"
+        echo
     fi
 
     if [[ -n "${IMAGE_DEID_ETL_SETTINGS_BUCKET}" ]]; then
@@ -36,6 +46,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
                 -backend-config="key=terraform/state"
 
             terraform plan \
+                -var="image_tag=${GIT_COMMIT}" \
                 -var-file="${IMAGE_DEID_ETL_SETTINGS_BUCKET}.tfvars" \
                 -out="${IMAGE_DEID_ETL_SETTINGS_BUCKET}.tfplan"
             ;;
