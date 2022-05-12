@@ -16,6 +16,8 @@ services:
     build: ./src/image_deid_etl
     env_file: .env
     environment:
+      - AWS_JOB_QUEUE=${AWS_JOB_QUEUE:-queueImageDeidEtl}
+      - AWS_JOB_DEFINITION=${AWS_JOB_DEFINITION:-jobImageDeidEtl}
       - DATABASE_URL=postgresql://image-deid-etl:image-deid-etl@database:5432/image-deid-etl
       - IMAGE_DEID_ETL_LOG_LEVEL=INFO
     volumes:

@@ -4,7 +4,9 @@ import logging.config
 import os
 import sys
 import tempfile
+import time
 
+import boto3
 import flywheel
 from sqlalchemy.exc import IntegrityError
 
@@ -111,6 +113,35 @@ def validate(args) -> int:
 
 
 def run(args) -> int:
+    if args.batch:
+        batch = boto3.client("batch")
+
+        aws_job_queue = os.getenv("AWS_JOB_QUEUE")
+        if aws_job_queue is None:
+            raise ImproperlyConfigured("You must supply a value for AWS_JOB_QUEUE.")
+
+        aws_job_definition = os.getenv("AWS_JOB_DEFINITION")
+        if aws_job_definition is None:
+            raise ImproperlyConfigured(
+                "You must supply a value for AWS_JOB_DEFINITION."
+            )
+
+        for uuid in args.uuid:
+            response = batch.submit_job(
+                jobName=f"ProcessStudy_{uuid}",
+                jobQueue=aws_job_queue,
+                jobDefinition=aws_job_definition,
+                containerOverrides={"command": ["image-deid-etl", "run", uuid]},
+            )
+
+            region = batch.meta.region_name
+            job_id = response["jobId"]
+            url = f"https://console.aws.amazon.com/batch/home?region={region}#jobs/detail/{job_id}"
+
+            logger.info(f"Job started! View here:\n{url}")
+
+        return 0
+
     local_path = f"{args.program}/{args.site}/"
 
     for uuid in args.uuid:
@@ -159,8 +190,8 @@ def run(args) -> int:
 
 
 def upload2fw(args) -> int:
-    # This is a hack so that the Flywheel CLI can consume credentials
-    # from the environment.
+    # This is a hack so that the Flywheel CLI can consume credentials from the
+    # environment.
     with tempfile.TemporaryDirectory() as flywheel_user_home:
         logger.info(f"Writing fake Flywheel CLI credentials to {flywheel_user_home}...")
         # The Flywheel CLI will look for its config directory at this path.
@@ -174,8 +205,9 @@ def upload2fw(args) -> int:
         source_path = f"{args.program}/{args.site}/NIfTIs/"
 
         if not os.path.exists(source_path):
-            # It appears that this can happen when sub_mapping is empty.
-            raise FileNotFoundError(f"{source_path} directory does not exist.")
+            raise FileNotFoundError(
+                f"{source_path} directory does not exist. Is sub_mapping empty?"
+            )
 
         for fw_project in next(os.walk(source_path))[1]:  # for each project dir
             proj_path = os.path.join(source_path, fw_project)
@@ -263,6 +295,11 @@ def main() -> int:
         "run",
         help="download images and run deidentification",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_run.add_argument(
+        "--batch",
+        action="store_true",
+        help="skip local processing and submit job(s) to AWS Batch",
     )
     parser_run.add_argument(
         "--skip-modalities",
