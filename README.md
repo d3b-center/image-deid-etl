@@ -8,7 +8,6 @@ The Image De-identification ETL is a WIP tool to assist with reading DICOM image
 - [Example Usage](#example-usage)
 - [Development](#development)
   - [AWS](#aws)
-  - [Nix Shell](#nix-shell)
 
 ## Getting Started
 
