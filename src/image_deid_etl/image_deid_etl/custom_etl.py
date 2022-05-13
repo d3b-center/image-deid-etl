@@ -1,12 +1,14 @@
-import pandas as pd
-from glob import glob
-import os
-import pydicom
-from datetime import datetime
-from datetime import date
+import importlib.resources as pkg_resources
 import json
+import os
 import shutil
+from datetime import datetime
+from glob import glob
+
+import pandas as pd
+import pydicom
 from dateutil.parser import parse
+
 
 def move_suspicious_files(file_list,out_dir):
 # move files that don't match the expected data type for images
@@ -375,7 +377,7 @@ def get_fw_proj_cbtn(cbtn_df,sub_mapping):
 #   in time in CBTN-all & then uses the Diagnosis category to derive a Flywheel project label
 #   (based on a mapping dictionary).
     cbtn_df = cbtn_df[['CBTN Subject ID','Age at Diagnosis','Diagnosis']]
-    proj_mapping = json.load(open('diagnosis_mapping.json'))
+    proj_mapping = json.load(pkg_resources.open_text(__package__, 'diagnosis_mapping.json'))
     sub_list = sub_mapping['C_ID'].values.tolist()
     session_list = sub_mapping['session_label'].values.tolist()
     age_at_imaging = [i.split('d_')[0] for i in session_list] # extract age-at-imaging from session label for *all* subjects

@@ -204,3 +204,8 @@ variable "rds_cpu_credit_balance_threshold" {
   default = 30
 }
 
+variable "image_tag" {
+  type    = string
+  default = "latest"
+}
+
