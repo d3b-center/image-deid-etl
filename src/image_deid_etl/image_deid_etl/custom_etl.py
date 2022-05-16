@@ -286,9 +286,9 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
                 patient_mrn = mrn_append_zeros([str(row['MRN'])])[0]
                 patient_uuid = get_patient_uuid_from_mrn(orthanc_url, patient_mrn)
                 patient_metadata = get_patient_metadata(orthanc_url, patient_uuid[0])
-                try:
+                if 'PatientBirthDate' in patient_metadata['MainDicomTags'].keys():
                     dob = patient_metadata['MainDicomTags']['PatientBirthDate']
-                except:
+                else:
                     dob = []
                 if len(dob) > 0:
                     sub_df.at[ind, 'DOB'] = datetime.strptime(dob, '%Y%m%d')
