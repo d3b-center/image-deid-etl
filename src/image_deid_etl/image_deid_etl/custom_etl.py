@@ -7,9 +7,6 @@ from datetime import date
 import json
 import shutil
 from dateutil.parser import parse
-from image_deid_etl.orthanc import get_orthanc_url,get_patient_metadata,get_patient_uuid_from_mrn
-
-orthanc_url = get_orthanc_url()
 
 def move_suspicious_files(file_list,out_dir):
 # move files that don't match the expected data type for images
@@ -259,6 +256,8 @@ def split_missing_values(input_df,col_name):
     return out_df,missing_df
 
 def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
+    from image_deid_etl.orthanc import get_orthanc_url,get_patient_metadata,get_patient_uuid_from_mrn
+    orthanc_url = get_orthanc_url()
     # map MRN to C-ID
     cbtn_df_sub = cbtn_df[['CBTN Subject ID','MRN','First Name','Last Name']].drop_duplicates()
     sub_info['mrn'] = sub_info['mrn'].astype(str)
