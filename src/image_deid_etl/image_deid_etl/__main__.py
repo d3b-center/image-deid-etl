@@ -183,6 +183,16 @@ def run(args) -> int:
 
         return 0
 
+    if not DEBUG:
+        # In production, include the UUID(s) currently being processed in the
+        # Rollbar payload.
+        # https://docs.rollbar.com/docs/custom-data
+        def payload_handler(payload):
+            payload["data"]["custom"] = {"uuid": args.uuid}
+            return payload
+
+        rollbar.events.add_payload_handler(payload_handler)
+
     local_path = f"{args.program}/{args.site}/"
 
     for uuid in args.uuid:
