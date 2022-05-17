@@ -1,9 +1,8 @@
-# NOTE: cbtn-all is HARD-CODED in cbtn_subject_info, will need to change this when ADAPT sets up routine CSV updating
 import logging
-import boto3
-import pandas as pd
-import io
 
+import pandas
+
+from image_deid_etl.exceptions import ImproperlyConfigured
 from image_deid_etl.external_data_handling import *
 from image_deid_etl.images_no_save import *
 
@@ -11,12 +10,12 @@ logger = logging.getLogger(__name__)
 
 todays_date = datetime.now().strftime('%Y-%m-%d')
 
-# point to cbtn-all CSV file from s3 using boto3 & default AWS profile
-table_fn = 'cbtn-all_identified_2022-03-17.csv'
-bucket_name = 'd3b-phi-data-prd'
-obj_path = f'imaging/{table_fn}'
-s3_client = boto3.client('s3')
-obj = s3_client.get_object(Bucket=bucket_name, Key=obj_path)
+SUBJECT_ID_MAPPING_PATH = os.getenv("SUBJECT_ID_MAPPING_PATH")
+if SUBJECT_ID_MAPPING_PATH is None:
+    raise ImproperlyConfigured(
+        "You must supply a valid string path in SUBJECT_ID_MAPPING_PATH."
+    )
+
 
 def subject_info(local_path, program, file_dir, validate=0):
     # site_name = local_path.split('/')[1]
@@ -29,7 +28,7 @@ def subject_info(local_path, program, file_dir, validate=0):
     if program == 'cbtn':
         # get CBTN Subject IDs
         try:
-            cbtn_all_df = pd.read_csv(io.BytesIO(obj['Body'].read()))
+            cbtn_all_df = pandas.read_csv(SUBJECT_ID_MAPPING_PATH)
         except IndexError as error:
             logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
         try:

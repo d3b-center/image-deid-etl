@@ -4,7 +4,6 @@ import logging.config
 import os
 import sys
 import tempfile
-import time
 
 import boto3
 import flywheel
@@ -31,6 +30,11 @@ if FLYWHEEL_GROUP is None:
         "You must supply a valid Flywheel group in FLYWHEEL_GROUP."
     )
 
+PHI_DATA_BUCKET_NAME = os.getenv("PHI_DATA_BUCKET_NAME")
+if PHI_DATA_BUCKET_NAME is None:
+    raise ImproperlyConfigured(
+        "You must supply a valid S3 bucket in PHI_DATA_BUCKET_NAME."
+    )
 
 # Configure Python's logging module. The Django project does a fantastic job explaining how logging works:
 # https://docs.djangoproject.com/en/4.0/topics/logging/
@@ -229,7 +233,9 @@ def add_fw_metadata(args) -> int:
 
 def s3_backup_niftis(args) -> int:
     local_path = f"{args.program}/{args.site}/"
-    s3_path = f"s3://d3b-phi-data-prd/imaging/radiology/{args.program}/{args.site}/"
+    s3_path = (
+        f"s3://{PHI_DATA_BUCKET_NAME}/imaging/radiology/{args.program}/{args.site}/"
+    )
 
     return os.system("aws s3 sync " + local_path + "NIfTIs/ " + s3_path + "NIfTIs/")
 

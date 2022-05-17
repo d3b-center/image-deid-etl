@@ -104,6 +104,9 @@ resource "aws_batch_job_definition" "default" {
     orthanc_host        = var.orthanc_host
     orthanc_port        = var.orthanc_port
 
+    phi_data_bucket_name    = var.d3b_phi_data_bucket_name
+    subject_id_mapping_path = var.subject_id_mapping_path
+
     image_deid_etl_log_level = var.image_deid_etl_log_level
   })
 }

@@ -274,6 +274,10 @@ variable "orthanc_port" {
   type = number
 }
 
+variable "subject_id_mapping_path" {
+  type = string
+}
+
 variable "image_deid_etl_log_level" {
   type    = string
   default = "INFO"
