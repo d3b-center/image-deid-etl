@@ -7,7 +7,7 @@ resource "aws_db_subnet_group" "default" {
   subnet_ids  = var.vpc_private_subnet_ids
 
   tags = {
-    Name        = "dbsngDatabaseServer"
+    Name = "dbsngDatabaseServer"
   }
 }
 
@@ -57,9 +57,7 @@ resource "aws_db_parameter_group" "default" {
   }
 
   tags = {
-    Name        = "dbpgDatabaseServer"
-    Project     = var.project
-    Environment = var.environment
+    Name = "dbpgDatabaseServer"
   }
 
   lifecycle {

@@ -31,6 +31,8 @@ Then, customize its contents with a text editor:
 - For `FLYWHEEL_GROUP`, specify either `d3b` or an alternative group created for testing (e.g., your name).
 - For `ORTHANC_CREDENTIALS`, use your Orthanc username and password specified like `username:password`.
 - For `ORTHANC_HOST`, specify the hostname (minus `http(s)://`) that you use to access Orthanc.
+- For `PHI_DATA_BUCKET_NAME`, specify the bucket name where the ETL should backup NIfTI files.
+- For `SUBJECT_ID_MAPPING_PATH`, specify the [path](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html) to the CSV file containing subject ID mappings.
 
 Next, run `update` to build the container image and initialize the database:
 

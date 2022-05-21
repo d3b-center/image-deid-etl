@@ -43,6 +43,41 @@ variable "bastion_public_key" {
   type = string
 }
 
+variable "batch_root_block_device_size" {
+  type    = number
+  default = 32
+}
+
+variable "batch_root_block_device_type" {
+  type    = string
+  default = "gp3"
+}
+
+variable "batch_spot_fleet_allocation_strategy" {
+  type    = string
+  default = "SPOT_CAPACITY_OPTIMIZED"
+}
+
+variable "batch_spot_fleet_bid_percentage" {
+  type    = number
+  default = 64
+}
+
+variable "batch_min_vcpus" {
+  type    = number
+  default = 0
+}
+
+variable "batch_max_vcpus" {
+  type    = number
+  default = 256
+}
+
+variable "batch_instance_types" {
+  type    = list(string)
+  default = ["c5d", "m5d", "z1d"]
+}
+
 variable "rds_allocated_storage" {
   type    = number
   default = 32
@@ -209,3 +244,64 @@ variable "image_tag" {
   default = "latest"
 }
 
+variable "image_deid_etl_vcpus" {
+  type    = number
+  default = 1
+}
+
+variable "image_deid_etl_memory" {
+  type    = number
+  default = 1024
+}
+
+variable "flywheel_api_key" {
+  type = string
+}
+
+variable "flywheel_group" {
+  type = string
+}
+
+variable "orthanc_credentials" {
+  type = string
+}
+
+variable "orthanc_host" {
+  type = string
+}
+
+variable "orthanc_port" {
+  type = number
+}
+
+variable "subject_id_mapping_path" {
+  type = string
+}
+
+variable "image_deid_etl_log_level" {
+  type    = string
+  default = "INFO"
+}
+
+variable "d3b_phi_data_kms_key_arn" {
+  type = string
+}
+
+variable "d3b_phi_data_bucket_name" {
+  type = string
+}
+
+variable "aws_batch_service_role_policy_arn" {
+  type    = string
+  default = "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole"
+}
+
+variable "aws_spot_fleet_service_role_policy_arn" {
+  type    = string
+  default = "arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetTaggingRole"
+}
+
+variable "aws_ec2_service_role_policy_arn" {
+  type    = string
+  default = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+}
