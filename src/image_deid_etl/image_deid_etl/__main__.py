@@ -20,6 +20,15 @@ from image_deid_etl.exceptions import ImproperlyConfigured
 from image_deid_etl.main_pipeline import validate_info, run_deid
 from image_deid_etl.orthanc import get_orthanc_url, get_uuids, download_unpack_copy
 
+ENVIRONMENT = os.getenv("IMAGE_DEID_ETL_ENV", "Development")
+VALID_ENVIRONMENTS = ("Production", "Staging", "Development")
+if ENVIRONMENT not in VALID_ENVIRONMENTS:
+    raise ImproperlyConfigured(
+        f"Invalid ENVIRONMENT provided, must be one of {VALID_ENVIRONMENTS}."
+    )
+
+DEBUG = ENVIRONMENT == "Development"
+
 FLYWHEEL_API_KEY = os.getenv("FLYWHEEL_API_KEY")
 if FLYWHEEL_API_KEY is None:
     raise ImproperlyConfigured("You must supply a FLYWHEEL_API_KEY.")
@@ -38,22 +47,50 @@ if PHI_DATA_BUCKET_NAME is None:
 
 # Configure Python's logging module. The Django project does a fantastic job explaining how logging works:
 # https://docs.djangoproject.com/en/4.0/topics/logging/
-logging.config.dictConfig(
-    {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-            },
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
         },
-        "root": {
-            "handlers": ["console"],
-            "level": os.getenv("IMAGE_DEID_ETL_LOG_LEVEL", "INFO"),
-        },
-    }
-)
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": os.getenv("IMAGE_DEID_ETL_LOG_LEVEL", "INFO"),
+    },
+}
 
+if not DEBUG:
+    # Initialize the Rollbar library for exception handling.
+    # https://docs.rollbar.com/docs/python#other
+    ROLLBAR = {
+        "access_token": os.getenv("ROLLBAR_POST_SERVER_ITEM_ACCESS_TOKEN"),
+        "environment": ENVIRONMENT.lower(),
+    }
+
+    import rollbar
+
+    rollbar.init(**ROLLBAR)
+
+    # Report uncaught exceptions to Rollbar.
+    # https://docs.python.org/3/library/sys.html#sys.excepthook
+    def excepthook(exc_type, exc_value, traceback):
+        rollbar.report_exc_info((exc_type, exc_value, traceback))
+        return sys.__excepthook__(exc_type, exc_value, traceback)
+
+    sys.excepthook = excepthook
+
+    # Report error messages to Rollbar's log handler.
+    # https://github.com/rollbar/pyrollbar/blob/master/rollbar/logger.py
+    LOGGING["handlers"]["rollbar"] = {
+        "level": "ERROR",
+        "class": "rollbar.logger.RollbarHandler",
+    }
+    LOGGING["root"]["handlers"].append("rollbar")
+
+
+logging.config.dictConfig(LOGGING)
 logger = logging.getLogger(__name__)
 
 
@@ -145,6 +182,16 @@ def run(args) -> int:
             logger.info(f"Job started! View here:\n{url}")
 
         return 0
+
+    if not DEBUG:
+        # In production, include the UUID(s) currently being processed in the
+        # Rollbar payload.
+        # https://docs.rollbar.com/docs/custom-data
+        def payload_handler(payload):
+            payload["data"]["custom"] = {"uuid": args.uuid}
+            return payload
+
+        rollbar.events.add_payload_handler(payload_handler)
 
     local_path = f"{args.program}/{args.site}/"
 

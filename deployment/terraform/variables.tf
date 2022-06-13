@@ -278,6 +278,10 @@ variable "subject_id_mapping_path" {
   type = string
 }
 
+variable "rollbar_post_server_item_access_token" {
+  type = string
+}
+
 variable "image_deid_etl_log_level" {
   type    = string
   default = "INFO"
