@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from glob import glob
+import pandas as pd
 
 import flywheel
 
@@ -9,25 +10,45 @@ logger = logging.getLogger(__name__)
 
 
 def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, data_dir: str):
-    json_files = glob(data_dir+'*/*/*/*/*.json')
+# for all JSON sidecar files on the local system, get target Flywheel information from
+# the subject mapping CSV (created earlier in the main "run" processes)
+# then grab the acquisition container labels directly from Flywheel
+# match the JSON to a container based on matching SeriesNumber
+# "inject" all fields from that JSON into the metadata of files in that container
+#
+#   when there's more than 1 match...
+
+    json_files = glob(data_dir+'NIfTIs/*/*/*/*/*.json')
+
+    sub_mapping = pd.read_csv(glob(data_dir+'files/*.csv')[0])
+    session = sub_mapping['session_label'][0]
+    fw_proj = sub_mapping['fw_proj'][0]
+    subject = sub_mapping['C_ID'][0]
+    flywheel_path = f"{flywheel_group}/{fw_proj}/{subject}/{session}"
+
+    # get labels of acquisitions for this session on Flywheel
+    session_cntr = fw_client.lookup(flywheel_path)
+    fw_acq_labels = []
+    for acquisition in session_cntr.acquisitions():
+        fw_acq_labels.append(acquisition.label)
+    acq_numbers = [x.split(' - ')[0] for x in fw_acq_labels]
+
+    # match local JSON files to acquisitions in the given session based on matching SeriesNumber
     for file in json_files:
-        path_to_acq = '/'.join(file.split('/')[3:-1]) # use local dir structure to perform lookup of acq container on Flywheel
-        path_to_acq = path_to_acq.replace('<','_')
-        path_to_acq = path_to_acq.replace('>','_')
-        path_to_acq = path_to_acq.replace(':','_')
-        path_to_acq = path_to_acq.replace('?','_')
-        path_to_acq = path_to_acq.replace('*','star')
-        if (path_to_acq[-1] == '.'):
-            path_to_acq = path_to_acq[0:-1]
-        acq = fw_client.lookup(f"{flywheel_group}/{path_to_acq}")
+        metadata = json.load(open(file,'r'), strict=False)
+        series_num = str(metadata['SeriesNumber'])
+        if len(series_num) == 1:
+            series_num = '0'+series_num
+        index = acq_numbers.index(series_num)
+        matching_flywheel_acq = fw_acq_labels[index]
+        fw_path_to_acq = f"{flywheel_path}/{matching_flywheel_acq}"
+        acq = fw_client.lookup(fw_path_to_acq)
         ## get nifti container w/in this acquisition
         nii_cntr=[]
         base = os.path.basename(file)
         nii_fn = os.path.splitext(base)[0] + '.nii.gz'
-        logger.debug('Adding JSON metadata to '+path_to_acq+'/'+nii_fn)
+        logger.debug('Adding JSON metadata to '+fw_path_to_acq+'/'+nii_fn)
         nii_cntr = acq.get_file(nii_fn)
-        with open(file) as f:
-            metadata = json.load(f)
         nii_cntr.update_info(metadata)
         # add in 'CT' modality classifications b/c there's an issue with Flywheel not doing it
         try:
