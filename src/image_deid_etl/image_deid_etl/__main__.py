@@ -4,6 +4,7 @@ import logging.config
 import os
 import sys
 import tempfile
+from glob import glob
 
 import boto3
 import flywheel
@@ -211,21 +212,25 @@ def run(args) -> int:
     delete_sessions(local_path + "DICOMs/", "script")
     delete_sessions(local_path + "DICOMs/", "Bone Scan")
 
-    # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
-    logger.info("Commencing de-identification process...")
-    run_deid(local_path, args.program)
+    # if there are no DICOMs to process, then exit
+    if len(glob(local_path + "DICOMs/*/*")) == 0:
+        logger.info("No DICOMs found. Exiting.")
+    else:
+        # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
+        logger.info("Commencing de-identification process...")
+        run_deid(local_path, args.program)
 
-    logger.info('Uploading "safe" files to Flywheel...')
-    upload2fw(args)
+        logger.info('Uploading "safe" files to Flywheel...')
+        upload2fw(args)
 
-    logger.info("Injecting sidecar metadata...")
-    add_fw_metadata(args)
+        logger.info("Injecting sidecar metadata...")
+        add_fw_metadata(args)
 
-    logger.info("DONE PROCESSING STUDIES")
-    if os.path.exists(local_path + "NIfTIs_to_check/"):
-        logger.info("There are files to check in: " + local_path + "NIfTIs_to_check/")
-    if os.path.exists(local_path + "NIfTIs_short_json/"):
-        logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
+        logger.info("DONE PROCESSING STUDIES")
+        if os.path.exists(local_path + "NIfTIs_to_check/"):
+            logger.info("There are files to check in: " + local_path + "NIfTIs_to_check/")
+        if os.path.exists(local_path + "NIfTIs_short_json/"):
+            logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
 
     try:
         logger.info("Updating list of UUIDs...")
