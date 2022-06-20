@@ -13,10 +13,11 @@ def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, dat
 # for all JSON sidecar files on the local system, get target Flywheel information from
 # the subject mapping CSV (created earlier in the main "run" processes)
 # then grab the acquisition container labels directly from Flywheel
-# match the JSON to a container based on matching SeriesNumber
+# match the JSON to a container based on matching SeriesDescription
 # "inject" all fields from that JSON into the metadata of files in that container
 #
-#   when there's more than 1 match...
+#   NOTE: assumes that no 2 acquisitions are labeled the exact same on Flywheel
+    from fuzzywuzzy import process
 
     json_files = glob(data_dir+'NIfTIs/*/*/*/*/*.json')
 
@@ -31,21 +32,24 @@ def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, dat
     fw_acq_labels = []
     for acquisition in session_cntr.acquisitions():
         fw_acq_labels.append(acquisition.label)
-    acq_numbers = [x.split(' - ')[0] for x in fw_acq_labels]
+    # acq_numbers = [x.split(' - ')[0] for x in fw_acq_labels]
 
     # match local JSON files to acquisitions in the given session based on matching SeriesNumber
     for file in json_files:
         metadata = json.load(open(file,'r'), strict=False)
-        series_num = str(metadata['SeriesNumber'])
-        if len(series_num) == 1:
-            series_num = '0'+series_num
-        index = acq_numbers.index(series_num)
-        matching_flywheel_acq = fw_acq_labels[index]
+        # series_num = str(metadata['SeriesNumber'])
+        # if len(series_num) == 1:
+            # series_num = '0'+series_num
+        # index = acq_numbers.index(series_num)
+        # matching_flywheel_acq = fw_acq_labels[index]
+        series_desc = metadata['SeriesDescription']
+        matching_flywheel_acq = process.extractOne(series_desc,fw_acq_labels)[0] # find closest match
+        # matching_flywheel_acq = process.extractBests(series_desc,fw_acq_labels) # find closest match
         fw_path_to_acq = f"{flywheel_path}/{matching_flywheel_acq}"
         acq = fw_client.lookup(fw_path_to_acq)
         ## get nifti container w/in this acquisition
         nii_cntr=[]
-        base = os.path.basename(file)
+        base = os.path.basename(file) # get JSON file name w/o file ending
         nii_fn = os.path.splitext(base)[0] + '.nii.gz'
         logger.debug('Adding JSON metadata to '+fw_path_to_acq+'/'+nii_fn)
         nii_cntr = acq.get_file(nii_fn)
