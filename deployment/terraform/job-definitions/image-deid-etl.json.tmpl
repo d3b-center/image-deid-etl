@@ -2,6 +2,11 @@
     "image": "${image_url}",
     "vcpus": ${image_deid_etl_vcpus},
     "memory": ${image_deid_etl_memory},
+    "command": [
+       "image-deid-etl",
+       "run",
+       "Ref::study-uuid"
+    ],
     "environment": [
         {
           "name": "DATABASE_URL",
