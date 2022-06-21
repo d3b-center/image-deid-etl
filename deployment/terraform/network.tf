@@ -6,7 +6,9 @@ resource "aws_security_group" "bastion" {
   vpc_id      = var.vpc_id
 
   tags = {
-    Name = "sgBastion"
+    Name        = "sgBastion"
+    Project     = var.project
+    Environment = var.environment
   }
 
   lifecycle {
@@ -26,6 +28,11 @@ data "aws_ami" "amazon_linux" {
 
 resource "aws_key_pair" "bastion" {
   public_key = var.bastion_public_key
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
 }
 
 resource "aws_instance" "bastion" {
@@ -39,7 +46,9 @@ resource "aws_instance" "bastion" {
   vpc_security_group_ids = [aws_security_group.bastion.id]
 
   tags = {
-    Name = "Bastion"
+    Name        = "Bastion"
+    Project     = var.project
+    Environment = var.environment
   }
 
   lifecycle {

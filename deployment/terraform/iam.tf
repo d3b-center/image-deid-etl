@@ -17,6 +17,11 @@ data "aws_iam_policy_document" "batch_assume_role" {
 resource "aws_iam_role" "batch_service_role" {
   name_prefix        = "batch${local.short}ServiceRole-"
   assume_role_policy = data.aws_iam_policy_document.batch_assume_role.json
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "batch_service_role_policy" {
@@ -43,6 +48,11 @@ data "aws_iam_policy_document" "spot_fleet_assume_role" {
 resource "aws_iam_role" "spot_fleet_service_role" {
   name_prefix        = "fleet${local.short}ServiceRole-"
   assume_role_policy = data.aws_iam_policy_document.spot_fleet_assume_role.json
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "spot_fleet_service_role_policy" {
@@ -69,6 +79,11 @@ data "aws_iam_policy_document" "ec2_assume_role" {
 resource "aws_iam_role" "ecs_instance_role" {
   name_prefix        = "ecs${local.short}InstanceRole-"
   assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "ec2_service_role_policy" {
@@ -79,6 +94,11 @@ resource "aws_iam_role_policy_attachment" "ec2_service_role_policy" {
 resource "aws_iam_instance_profile" "ecs_instance_role" {
   name = aws_iam_role.ecs_instance_role.name
   role = aws_iam_role.ecs_instance_role.name
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
 }
 
 # We need to data references to get a handle on these resources because
@@ -106,7 +126,7 @@ data "aws_iam_policy_document" "scoped_etl_read" {
     effect = "Allow"
 
     actions = [
-      "s3:GetObject",
+      "s3:GetObject"
     ]
 
     resources = [

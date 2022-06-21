@@ -6,7 +6,9 @@ resource "aws_security_group" "batch" {
   vpc_id      = var.vpc_id
 
   tags = {
-    Name = "sgBatchContainerInstance"
+    Name        = "sgBatchContainerInstance"
+    Project     = var.project
+    Environment = var.environment
   }
 
   lifecycle {
@@ -30,6 +32,11 @@ resource "aws_launch_template" "default" {
   }
 
   user_data = base64encode(file("cloud-config/batch-container-instance"))
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
 }
 
 resource "aws_batch_compute_environment" "default" {
@@ -74,6 +81,11 @@ resource "aws_batch_compute_environment" "default" {
 
   depends_on = [aws_iam_role_policy_attachment.batch_service_role_policy]
 
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
+
   lifecycle {
     create_before_destroy = true
   }
@@ -84,6 +96,11 @@ resource "aws_batch_job_queue" "default" {
   priority             = 1
   state                = "ENABLED"
   compute_environments = [aws_batch_compute_environment.default.arn]
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
 }
 
 resource "aws_batch_job_definition" "default" {
@@ -113,4 +130,9 @@ resource "aws_batch_job_definition" "default" {
 
     environment = var.environment
   })
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
 }
