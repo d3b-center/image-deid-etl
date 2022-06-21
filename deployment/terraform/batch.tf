@@ -131,6 +131,8 @@ resource "aws_batch_job_definition" "default" {
     environment = var.environment
   })
 
+  platform_capabilities = ["EC2"]
+
   tags = {
     Project     = var.project
     Environment = var.environment
