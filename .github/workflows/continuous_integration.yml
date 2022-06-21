@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - feature/rb/github-actions
+  pull_request:
+
+# https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+permissions:
+    contents: read
+    id-token: write
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Execute cibuild
+        run: ./scripts/cibuild
+
+      - name: Execute cipublish
+        run: ./scripts/cipublish
+        if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/rb/github-actions'
+
+      - name: Execute infra
+        run: |
+          docker-compose -f docker-compose.ci.yml run --rm terraform -c "
+            # Unset this to avoid a ProfileNotFound exception from the AWS CLI.
+            unset AWS_PROFILE
+            ./scripts/infra plan && ./scripts/infra apply
+          "
+        if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/rb/github-actions'
