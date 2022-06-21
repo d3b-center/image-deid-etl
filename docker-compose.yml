@@ -14,11 +14,18 @@ services:
   image-deid-etl:
     image: image-deid-etl
     build: ./src/image_deid_etl
-    env_file: .env
     environment:
-      - AWS_JOB_QUEUE=${AWS_JOB_QUEUE:-queueImageDeidEtl}
+      - AWS_PROFILE
       - AWS_JOB_DEFINITION=${AWS_JOB_DEFINITION:-jobImageDeidEtl}
+      - AWS_JOB_QUEUE=${AWS_JOB_QUEUE:-queueImageDeidEtl}
       - DATABASE_URL=postgresql://image-deid-etl:image-deid-etl@database:5432/image-deid-etl
+      - FLYWHEEL_API_KEY
+      - FLYWHEEL_GROUP
+      - ORTHANC_CREDENTIALS
+      - ORTHANC_HOST
+      - ORTHANC_PORT
+      - PHI_DATA_BUCKET_NAME
+      - SUBJECT_ID_MAPPING_PATH
       - IMAGE_DEID_ETL_ENV=Development
       - IMAGE_DEID_ETL_LOG_LEVEL=INFO
     volumes:
