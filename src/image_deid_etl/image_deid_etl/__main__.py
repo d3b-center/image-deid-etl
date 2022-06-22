@@ -273,7 +273,7 @@ def add_fw_metadata(args) -> int:
 
     fw_client = flywheel.Client(FLYWHEEL_API_KEY)
 
-    inject_sidecar_metadata(fw_client, FLYWHEEL_GROUP, local_path)
+    inject_sidecar_metadata(fw_client, FLYWHEEL_GROUP, local_path + "files/", local_path + "NIfTIs/")
 
     return 0
 

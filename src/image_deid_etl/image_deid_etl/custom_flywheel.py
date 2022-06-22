@@ -9,19 +9,19 @@ import flywheel
 logger = logging.getLogger(__name__)
 
 
-def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, data_dir: str):
+def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, sub_mapping_dir: str, data_dir: str):
 # for all JSON sidecar files on the local system, get target Flywheel information from
 # the subject mapping CSV (created earlier in the main "run" processes)
 # then grab the acquisition container labels directly from Flywheel
-# match the JSON to a container based on matching SeriesDescription
+# match the JSON to a container based on matching SeriesNum+SeriesDescription
 # "inject" all fields from that JSON into the metadata of files in that container
 #
 #   NOTE: assumes that no 2 acquisitions are labeled the exact same on Flywheel
     from fuzzywuzzy import process
 
-    json_files = glob(data_dir+'NIfTIs/*/*/*/*/*.json')
+    json_files = glob(data_dir+'*/*/*/*/*.json')
 
-    sub_mapping = pd.read_csv(glob(data_dir+'files/*.csv')[0])
+    sub_mapping = pd.read_csv(glob(os.path.join(sub_mapping_dir,'*.csv'))[0])
     session = sub_mapping['session_label'][0]
     fw_proj = sub_mapping['fw_proj'][0]
     subject = sub_mapping['C_ID'][0]
@@ -34,44 +34,47 @@ def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, dat
         fw_acq_labels.append(acquisition.label)
     # acq_numbers = [x.split(' - ')[0] for x in fw_acq_labels]
 
-    # match local JSON files to acquisitions in the given session based on matching SeriesNumber
+    # match local JSON files to acquisitions in the given session based on matching SeriesNumber + SeriesDesc
     for file in json_files:
         metadata = json.load(open(file,'r'), strict=False)
-        # series_num = str(metadata['SeriesNumber'])
-        # if len(series_num) == 1:
-            # series_num = '0'+series_num
+        series_num = str(metadata['SeriesNumber'])
+        if len(series_num) == 1:
+            series_num = '0'+series_num
         # index = acq_numbers.index(series_num)
         # matching_flywheel_acq = fw_acq_labels[index]
         series_desc = metadata['SeriesDescription']
-        matching_flywheel_acq = process.extractOne(series_desc,fw_acq_labels)[0] # find closest match
-        # matching_flywheel_acq = process.extractBests(series_desc,fw_acq_labels) # find closest match
-        fw_path_to_acq = f"{flywheel_path}/{matching_flywheel_acq}"
-        acq = fw_client.lookup(fw_path_to_acq)
-        ## get nifti container w/in this acquisition
-        nii_cntr=[]
-        base = os.path.basename(file) # get JSON file name w/o file ending
-        nii_fn = os.path.splitext(base)[0] + '.nii.gz'
-        logger.debug('Adding JSON metadata to '+fw_path_to_acq+'/'+nii_fn)
-        nii_cntr = acq.get_file(nii_fn)
-        nii_cntr.update_info(metadata)
-        # add in 'CT' modality classifications b/c there's an issue with Flywheel not doing it
-        try:
-            if metadata['Modality']=='CT':
-                logger.debug('Adding CT modality')
-                for file in acq.files:
-                    if ('.nii.gz' in file.name):
-                        try:
-                            acq.replace_file_classification(file.name,{},modality=metadata['Modality']) # this one works
-                            json_fn = file.name.strip('nii.gz')+'.json'
-                            acq.replace_file_classification(json_fn,{},modality=metadata['Modality'])
-                            bval_fn = file.name.strip('nii.gz')+'.bval'
-                            acq.replace_file_classification(bval_fn,{},modality=metadata['Modality'])
-                            bvec_fn = file.name.strip('nii.gz')+'.bval'
-                            acq.replace_file_classification(bvec_fn,{},modality=metadata['Modality'])
-                        except:
-                            continue
-        except KeyError:
-                continue
+        target_label = f'{series_num} - {series_desc}'
+        matching_flywheel_acq = process.extractOne(target_label, fw_acq_labels, score_cutoff=60) # find closest match
+        if matching_flywheel_acq:
+            matching_flywheel_acq = matching_flywheel_acq[0]
+            # matching_flywheel_acq = process.extractBests(series_desc,fw_acq_labels) # find closest match
+            fw_path_to_acq = f"{flywheel_path}/{matching_flywheel_acq}"
+            acq = fw_client.lookup(fw_path_to_acq)
+            ## get nifti container w/in this acquisition
+            nii_cntr=[]
+            base = os.path.basename(file) # get JSON file name w/o file ending
+            nii_fn = os.path.splitext(base)[0] + '.nii.gz'
+            logger.debug('Adding JSON metadata to '+fw_path_to_acq+'/'+nii_fn)
+            nii_cntr = acq.get_file(nii_fn)
+            nii_cntr.update_info(metadata)
+            # add in 'CT' modality classifications b/c there's an issue with Flywheel not doing it
+            try:
+                if metadata['Modality']=='CT':
+                    logger.debug('Adding CT modality')
+                    for file in acq.files:
+                        if ('.nii.gz' in file.name):
+                            try:
+                                acq.replace_file_classification(file.name,{},modality=metadata['Modality']) # this one works
+                                json_fn = file.name.strip('nii.gz')+'.json'
+                                acq.replace_file_classification(json_fn,{},modality=metadata['Modality'])
+                                bval_fn = file.name.strip('nii.gz')+'.bval'
+                                acq.replace_file_classification(bval_fn,{},modality=metadata['Modality'])
+                                bvec_fn = file.name.strip('nii.gz')+'.bval'
+                                acq.replace_file_classification(bvec_fn,{},modality=metadata['Modality'])
+                            except:
+                                continue
+            except KeyError:
+                    continue
 
 def upload_dir_2_fw(flywheel_group, local_path):
     for project in glob(data_path+'*'):
