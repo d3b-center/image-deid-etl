@@ -321,3 +321,16 @@ variable "aws_ec2_service_role_policy_arn" {
   type    = string
   default = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
 }
+
+variable "aws_administrator_access_policy_arn" {
+  type    = string
+  default = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+variable "refs_that_can_assume_github_actions_role" {
+  type = list(string)
+  default = [
+    "refs/heads/develop",
+    "refs/heads/master"
+  ]
+}

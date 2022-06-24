@@ -1,4 +1,59 @@
 #
+# GitHub Actions IAM resources
+#
+data "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+}
+
+data "aws_iam_policy_document" "github_actions_assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Federated"
+      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+    }
+
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+
+      values = [
+        "sts.amazonaws.com"
+      ]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+
+      values = [
+        for ref
+        in var.refs_that_can_assume_github_actions_role
+        : "repo:d3b-center/image-deid-etl:ref:${ref}"
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions_role" {
+  name_prefix        = "GitHubActions${local.short}Role-"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_assume_role.json
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_role_policy" {
+  role       = aws_iam_role.github_actions_role.name
+  policy_arn = var.aws_administrator_access_policy_arn
+}
+
+#
 # Batch IAM resources
 #
 data "aws_iam_policy_document" "batch_assume_role" {
