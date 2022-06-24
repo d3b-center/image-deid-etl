@@ -13,4 +13,4 @@ rollbar==0.16.2
 s3fs>=0.4.0 # Relaxing the version constraint to avoid botocore incompatibilities.
 sqlalchemy==1.4.32
 urllib3==1.26.8
-fuzzywuzzy=0.18.0
+fuzzywuzzy==0.18.0
