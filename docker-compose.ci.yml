@@ -3,13 +3,18 @@ services:
     image: image-deid-etl:${GIT_COMMIT:-latest}
 
   terraform:
-    image: ghcr.io/d3b-center/terraform:1.1.9
+    build: ./deployment
     volumes:
       - ./:/usr/local/src
       - $HOME/.aws:/root/.aws
     environment:
       - AWS_PROFILE=${AWS_PROFILE:-chopd3bprod}
-      - GIT_COMMIT=${GIT_COMMIT:-latest}
+      - AWS_DEFAULT_REGION
+      - AWS_REGION
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - GIT_COMMIT
       - IMAGE_DEID_ETL_DEBUG=1
       - IMAGE_DEID_ETL_SETTINGS_BUCKET=${IMAGE_DEID_ETL_SETTINGS_BUCKET:-image-deid-etl-staging-config-us-east-1}
     working_dir: /usr/local/src

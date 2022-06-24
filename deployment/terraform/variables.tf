@@ -40,7 +40,8 @@ variable "bastion_instance_type" {
 }
 
 variable "bastion_public_key" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "batch_root_block_device_size" {
@@ -117,11 +118,13 @@ variable "rds_database_name" {
 }
 
 variable "rds_database_username" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "rds_database_password" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "rds_backup_retention_period" {
@@ -255,31 +258,38 @@ variable "image_deid_etl_memory" {
 }
 
 variable "flywheel_api_key" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "flywheel_group" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "orthanc_credentials" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "orthanc_host" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "orthanc_port" {
-  type = number
+  type      = number
+  sensitive = true
 }
 
 variable "subject_id_mapping_path" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "rollbar_post_server_item_access_token" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "image_deid_etl_log_level" {
@@ -288,11 +298,13 @@ variable "image_deid_etl_log_level" {
 }
 
 variable "d3b_phi_data_kms_key_arn" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "d3b_phi_data_bucket_name" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "aws_batch_service_role_policy_arn" {
@@ -308,4 +320,17 @@ variable "aws_spot_fleet_service_role_policy_arn" {
 variable "aws_ec2_service_role_policy_arn" {
   type    = string
   default = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+}
+
+variable "aws_administrator_access_policy_arn" {
+  type    = string
+  default = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+variable "refs_that_can_assume_github_actions_role" {
+  type = list(string)
+  default = [
+    "refs/heads/develop",
+    "refs/heads/master"
+  ]
 }
