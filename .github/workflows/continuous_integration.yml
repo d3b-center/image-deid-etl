@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - develop
-      - feature/rb/github-actions
   pull_request:
 
 # https://docs.github.com/en/actions/security-guides/automatic-token-authentication
@@ -28,11 +27,11 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ secrets.AWS_REGION }}
-        if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/rb/github-actions'
+        if: github.ref == 'refs/heads/develop'
 
       - name: Execute cipublish
         run: ./scripts/cipublish
-        if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/rb/github-actions'
+        if: github.ref == 'refs/heads/develop'
 
       - name: Execute infra
         run: |
@@ -41,7 +40,7 @@ jobs:
             unset AWS_PROFILE
             ./scripts/infra plan && ./scripts/infra apply
           "
-        if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/rb/github-actions'
+        if: github.ref == 'refs/heads/develop'
 
       - name: Notify Rollbar
         uses: rollbar/github-deploy-action@2.1.1
@@ -51,4 +50,4 @@ jobs:
         env:
           ROLLBAR_ACCESS_TOKEN: ${{ secrets.ROLLBAR_ACCESS_TOKEN }}
           ROLLBAR_USERNAME: ${{ github.actor }}
-        if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/rb/github-actions'
+        if: github.ref == 'refs/heads/develop'
