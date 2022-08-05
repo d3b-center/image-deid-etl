@@ -268,7 +268,7 @@ def upload2fw(args) -> int:
         for fw_project in next(os.walk(source_path))[1]:  # for each project dir
             proj_path = os.path.join(source_path, fw_project)
             os.system(
-                f"fw ingest folder --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}"
+                f"fw ingest folder --no-audit-log --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}"
             )
     return 0
 
