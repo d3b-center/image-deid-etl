@@ -44,6 +44,15 @@ variable "bastion_public_key" {
   sensitive = true
 }
 
+variable "r53_private_hosted_zone" {
+  type    = string
+  default = "image-deid-etl.internal"
+}
+
+variable "r53_public_hosted_zone" {
+  type = string
+}
+
 variable "batch_root_block_device_size" {
   type    = number
   default = 32
