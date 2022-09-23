@@ -5,6 +5,7 @@ A bastion host is a server whose purpose is to provide access to a private netwo
 - [Prerequisites](#Prerequisites)
 - [Configuring the Tunnel](#configuring-the-tunnel)
 - [Establishing the Tunnel](#establishing-the-tunnel)
+- [Schema Overview](#schema-overview)
 
 ## Prerequisites
 
@@ -80,3 +81,9 @@ imagedeidetl=>
 ```
 
 </details>
+
+## Schema Overview
+
+We define the database schema using SQLAlchemy under [`src/image_deid_etl/image_deid_etl/database.py`](../src/image_deid_etl/image_deid_etl/database.py).
+
+Currently, we do not use any framework for managing database schema changes (migrations). Instead, the CLI has an `initdb` command that we use for provisioning the schema on a blank database.
