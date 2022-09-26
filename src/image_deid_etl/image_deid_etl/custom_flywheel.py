@@ -31,7 +31,6 @@ def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, sub
     fw_acq_labels = []
     for acquisition in session_cntr.acquisitions():
         fw_acq_labels.append(acquisition.label)
-    # acq_numbers = [x.split(' - ')[0] for x in fw_acq_labels]
 
     # match local JSON files to acquisitions in the given session based on matching SeriesNumber + SeriesDesc
     for file in json_files:
@@ -39,14 +38,11 @@ def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, sub
         series_num = str(metadata['SeriesNumber'])
         if len(series_num) == 1:
             series_num = '0'+series_num
-        # index = acq_numbers.index(series_num)
-        # matching_flywheel_acq = fw_acq_labels[index]
         series_desc = metadata['SeriesDescription']
         target_label = f'{series_num} - {series_desc}'
         matching_flywheel_acq = process.extractOne(target_label, fw_acq_labels, score_cutoff=60) # find closest match
         if matching_flywheel_acq:
             matching_flywheel_acq = matching_flywheel_acq[0]
-            # matching_flywheel_acq = process.extractBests(series_desc,fw_acq_labels) # find closest match
             fw_path_to_acq = f"{flywheel_path}/{matching_flywheel_acq}"
             acq = fw_client.lookup(fw_path_to_acq)
             ## get nifti container w/in this acquisition
