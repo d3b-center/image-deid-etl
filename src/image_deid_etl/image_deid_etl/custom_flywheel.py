@@ -3,7 +3,7 @@ import logging
 import os
 from glob import glob
 import pandas as pd
-
+from fuzzywuzzy import process
 import flywheel
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,6 @@ def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, sub
 # "inject" all fields from that JSON into the metadata of files in that container
 #
 #   NOTE: assumes that no 2 acquisitions are labeled the exact same on Flywheel
-    from fuzzywuzzy import process
 
     json_files = glob(data_dir+'*/*/*/*/*.json')
 
