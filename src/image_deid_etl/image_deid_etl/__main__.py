@@ -218,29 +218,38 @@ def run(args) -> int:
     else:
         # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
         logger.info("Commencing de-identification process...")
-        run_deid(local_path, args.program)
+        missing_ses_flag,missing_subj_id_flag = run_deid(local_path, args.program)
 
-        logger.info('Uploading "safe" files to Flywheel...')
-        upload2fw(args)
+        if missing_ses_flag:
+            raise FileNotFoundError(
+                "Unable to generate session label."
+                )
+        if missing_subj_id_flag:
+            raise FileNotFoundError(
+                "Unable to find subject ID."
+            )
+        else:
+            logger.info('Uploading "safe" files to Flywheel...')
+            upload2fw(args)
 
-        logger.info("Injecting sidecar metadata...")
-        add_fw_metadata(args)
+            logger.info("Injecting sidecar metadata...")
+            add_fw_metadata(args)
 
-        logger.info("DONE PROCESSING STUDIES")
-        if os.path.exists(local_path + "NIfTIs_to_check/"):
-            logger.info("There are files to check in: " + local_path + "NIfTIs_to_check/")
-        if os.path.exists(local_path + "NIfTIs_short_json/"):
-            logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
+            logger.info("DONE PROCESSING STUDIES")
+            if os.path.exists(local_path + "NIfTIs_to_check/"):
+                logger.info("There are files to check in: " + local_path + "NIfTIs_to_check/")
+            if os.path.exists(local_path + "NIfTIs_short_json/"):
+                logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
 
-    try:
-        logger.info("Updating list of UUIDs...")
-        import_uuids_from_set(args.uuid)
-    except IntegrityError as error:
-        logger.error(
-            "Unable to mark %d UUID(s) as processed. The UUID(s) already exist in the database: %r",
-            len(args.uuid),
-            error,
-        )
+            try:
+                logger.info("Updating list of UUIDs...")
+                import_uuids_from_set(args.uuid)
+            except IntegrityError as error:
+                logger.error(
+                    "Unable to mark %d UUID(s) as processed. The UUID(s) already exist in the database: %r",
+                    len(args.uuid),
+                    error,
+                )
 
     return 0
 
