@@ -221,11 +221,11 @@ def run(args) -> int:
         missing_ses_flag,missing_subj_id_flag = run_deid(local_path, args.program)
 
         if missing_ses_flag:
-            raise FileNotFoundError(
+            raise AttributeError(
                 "Unable to generate session label."
                 )
         if missing_subj_id_flag:
-            raise FileNotFoundError(
+            raise LookupError(
                 "Unable to find subject ID."
             )
         else:
