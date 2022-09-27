@@ -21,10 +21,9 @@ def subject_info(local_path, program, file_dir, validate=0):
     # site_name = local_path.split('/')[1]
     logger.info('Getting subject ids.')
     sub_info = get_subject_info_dir(local_path) # sub_info = get_subject_info_dicoms(local_path) # slower b/c iterates over all DICOM files, doesn't depend on dir structure/names though
-    if validate:
-        sub_missing_c_ids=[]
-        sub_missing_ses=[]
-        sub_missing_proj=[]
+    sub_missing_c_ids=[]
+    sub_missing_ses=[]
+    sub_missing_proj=[]
     if program == 'cbtn':
         # get CBTN Subject IDs
         try:
