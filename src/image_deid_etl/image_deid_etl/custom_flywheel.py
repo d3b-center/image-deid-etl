@@ -9,21 +9,24 @@ import flywheel
 logger = logging.getLogger(__name__)
 
 
-def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, sub_mapping_dir: str, data_dir: str):
-# for all JSON sidecar files on the local system, get target Flywheel information from
-# the subject mapping CSV (created earlier in the main "run" processes)
+def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, data_dir: str):
+# for all JSON sidecar files on the local system, 
+# get target Flywheel information from the directory labels
 # then grab the acquisition container labels directly from Flywheel
 # match the JSON to a container based on matching SeriesNum+SeriesDescription
 # "inject" all fields from that JSON into the metadata of files in that container
 #
-#   NOTE: assumes that no 2 acquisitions are labeled the exact same on Flywheel
+#
+#   NOTE:
+#       -- assumes that no 2 acquisitions are labeled the exact same on Flywheel
+#       -- assumes 1 session per UUID (1 project, 1 session, 1 subject)
 
     json_files = glob(data_dir+'*/*/*/*/*.json')
 
-    sub_mapping = pd.read_csv(glob(os.path.join(sub_mapping_dir,'*.csv'))[0])
-    session = sub_mapping['session_label'][0]
-    fw_proj = sub_mapping['fw_proj'][0]
-    subject = sub_mapping['C_ID'][0]
+    # use directory labels to get target Flywheel path
+    fw_proj = glob(data_dir+'*')[0].split('/')[-1]
+    subject = glob(data_dir+'*/*')[0].split('/')[-1]
+    session = glob(data_dir+'*/*/*')[0].split('/')[-1]
     flywheel_path = f"{flywheel_group}/{fw_proj}/{subject}/{session}"
 
     # get labels of acquisitions for this session on Flywheel
