@@ -111,6 +111,9 @@ def get_body_part_examined(desc):
     if 'shoulder' in desc.lower():
         abbrv.append('Sh')
         parts.append('shoulder')
+    if 'knee' in desc.lower():
+        abbrv.append('K')
+        parts.append('knee')
     if ('skull base to mid thigh' in desc.lower()) or \
         ('hip' in desc.lower()):
         abbrv.append('Bo')
