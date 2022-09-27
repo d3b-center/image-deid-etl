@@ -266,7 +266,8 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
     # map MRN to C-ID
     cbtn_df_sub = cbtn_df[['CBTN Subject ID','MRN','First Name','Last Name']].drop_duplicates()
     sub_info['mrn'] = sub_info['mrn'].astype(str)
-    cbtn_df_sub['MRN']  = cbtn_df_sub['MRN'].astype(str)
+    cbtn_df_sub['MRN'] = cbtn_df_sub['MRN'].astype(str)
+    cbtn_df_sub['MRN'] = cbtn_df_sub['MRN'].str.lstrip('0')
     sub_info['first_name'] = sub_info['first_name'].astype(str).str.lower()
     sub_info['last_name'] = sub_info['last_name'].astype(str).str.lower()
     cbtn_df_sub['First Name'] = cbtn_df_sub['First Name'].astype(str).str.lower()
@@ -277,13 +278,13 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
     # get cbtn info for this specific subject
     sub_df = pd.merge(sub_info, cbtn_df_sub, how='left', left_on=['mrn'], right_on=['MRN'])
     # if any are still missing C-ID, try FirstName/LastName
-    sub_df,missing_c_ids = split_missing_values(sub_df,'CBTN Subject ID')
+    sub_df, missing_c_ids = split_missing_values(sub_df,'CBTN Subject ID')
     if not missing_c_ids.empty:
         sub_df2 = pd.merge(missing_c_ids,cbtn_df_sub,how='left',left_on=['last_name','first_name'],right_on=['Last Name','First Name'])
         sub_df = pd.concat([sub_df,sub_df2],ignore_index=True)
     # get the session labels based on DICOM fields
     dicom_info = get_dicom_fields(data_dir)
-    sub_df = pd.merge(sub_df,dicom_info,on='accession_num') # assumes there are accession #s for all rows in both df's
+    sub_df = pd.merge(sub_df, dicom_info, on='accession_num') # assumes there are accession #s for all rows in both df's
     if len(sub_df) > 1:
         sub_df = sub_df.loc[sub_df.astype(str).drop_duplicates().index]
     # if there are subjects missing DOB, try to fill values from other studies on Orthanc
