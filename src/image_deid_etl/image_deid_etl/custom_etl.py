@@ -268,6 +268,10 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
     sub_info['last_name'] = sub_info['last_name'].astype(str).str.lower()
     cbtn_df_sub['First Name'] = cbtn_df_sub['First Name'].astype(str).str.lower()
     cbtn_df_sub['Last Name'] = cbtn_df_sub['Last Name'].astype(str).str.lower()
+    # force format of DOB column so that it can be handled properly
+    cbtn_df['DOB'] = pd.to_datetime(cbtn_df.DOB)
+    cbtn_df['DOB'] = cbtn_df['DOB'].dt.strftime('%m/%d/%y')
+    # get cbtn info for this specific subject
     sub_df = pd.merge(sub_info, cbtn_df_sub, how='left', left_on=['mrn'], right_on=['MRN'])
     # if any are still missing C-ID, try FirstName/LastName
     sub_df,missing_c_ids = split_missing_values(sub_df,'CBTN Subject ID')
