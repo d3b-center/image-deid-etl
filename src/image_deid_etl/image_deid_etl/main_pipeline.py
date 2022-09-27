@@ -34,7 +34,7 @@ def subject_info(local_path, program, file_dir, validate=0):
         try:
             sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(cbtn_all_df,sub_info,local_path)
         except ValueError as error:
-            logger.error("Unable to get subject mapping without the images (program/site folder structure) present: %r", error)
+            logger.error("Error in getting CBTN subject mapping: %r", error)
     elif program == 'corsica':
         corsica_fn='corsica_identified_mapping.csv'
         sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_corsica(corsica_fn,sub_info,local_path,program,'Patient_Name') # MRN or Patient_Name
