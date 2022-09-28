@@ -121,7 +121,10 @@ def run_deid(local_path, program):
         convert_dicom2nifti(local_path+'DICOMs/') # skips acquisition directories w/niftis already in them
         filter_sidecars(local_path+'DICOMs/')
         if sub_mapping.empty:
-            logger.info('NIfTI files created but no subject mapping to use.')
+            raise FileNotFoundError(
+                f"'NIfTI files created but no subject mapping to use. Target directory cannot be created. Exiting..."
+            )
+            sys.exit(1)
         else:
          # move ouput files to c-id/session directories and clean of acqusition + file names
          # move files w/short JSON sidecars to NIfTIs_short_json/
