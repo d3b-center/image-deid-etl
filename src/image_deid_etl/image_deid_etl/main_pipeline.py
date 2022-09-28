@@ -5,6 +5,7 @@ import pandas
 from image_deid_etl.exceptions import ImproperlyConfigured
 from image_deid_etl.external_data_handling import *
 from image_deid_etl.images_no_save import *
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -21,23 +22,25 @@ def subject_info(local_path, program, file_dir, validate=0):
     # site_name = local_path.split('/')[1]
     logger.info('Getting subject ids.')
     sub_info = get_subject_info_dir(local_path) # sub_info = get_subject_info_dicoms(local_path) # slower b/c iterates over all DICOM files, doesn't depend on dir structure/names though
-    if validate:
-        sub_missing_c_ids=[]
-        sub_missing_ses=[]
-        sub_missing_proj=[]
+    sub_missing_c_ids=pd.DataFrame()
+    sub_missing_ses=pd.DataFrame()
+    sub_missing_proj=pd.DataFrame()
     if program == 'cbtn':
         # get CBTN Subject IDs
         try:
             cbtn_all_df = pandas.read_csv(SUBJECT_ID_MAPPING_PATH)
         except IndexError as error:
             logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
+            sys.exit(1)
         try:
             sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(cbtn_all_df,sub_info,local_path)
         except ValueError as error:
             logger.error("Error in getting CBTN subject mapping: %r", error)
+            sys.exit(1)
     elif program == 'corsica':
         corsica_fn='corsica_identified_mapping.csv'
         sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_corsica(corsica_fn,sub_info,local_path,program,'Patient_Name') # MRN or Patient_Name
+    # account for missing subject labels
     if not sub_missing_c_ids.empty:
         output_fn = file_dir+'missing_subject_ids_'+todays_date+'.csv'
         logger.warning('      WARNING: Subject(s) with missing C-IDs found. Please check  '+output_fn)
@@ -54,7 +57,7 @@ def subject_info(local_path, program, file_dir, validate=0):
     else:
         missing_ses_flag=0
     logger.info('Getting target Flywheel projects.')
-#  get target Flywheel project based on diagnosis
+    # get target Flywheel project based on diagnosis
     if program == 'cbtn':
         sub_mapping,sub_missing_proj = get_fw_proj_cbtn(cbtn_all_df,sub_mapping)
         if not sub_missing_proj.empty:
@@ -118,7 +121,10 @@ def run_deid(local_path, program):
         convert_dicom2nifti(local_path+'DICOMs/') # skips acquisition directories w/niftis already in them
         filter_sidecars(local_path+'DICOMs/')
         if sub_mapping.empty:
-            logger.info('NIfTI files created but no subject mapping to use.')
+            raise FileNotFoundError(
+                f"'NIfTI files created but no subject mapping to use. Target directory cannot be created. Exiting..."
+            )
+            sys.exit(1)
         else:
          # move ouput files to c-id/session directories and clean of acqusition + file names
          # move files w/short JSON sidecars to NIfTIs_short_json/
