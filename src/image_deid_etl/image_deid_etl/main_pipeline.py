@@ -31,6 +31,7 @@ def subject_info(local_path, program, file_dir, validate=0):
             cbtn_all_df = pandas.read_csv(SUBJECT_ID_MAPPING_PATH)
         except IndexError as error:
             logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
+            sys.exit(1)
         try:
             sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(cbtn_all_df,sub_info,local_path)
         except ValueError as error:
