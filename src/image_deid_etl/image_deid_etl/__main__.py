@@ -207,27 +207,31 @@ def run(args) -> int:
     # Remove any acquisitions/sessions that we don't want to process.
     delete_acquisitions_by_modality(local_path + "DICOMs/", "OT")
     delete_acquisitions_by_modality(local_path + "DICOMs/", "SR")
+    delete_acquisitions_by_modality(local_path + "DICOMs/", "XA") # X-Ray Angiography
+    delete_acquisitions_by_modality(local_path + "DICOMs/", "US") # ultrasound
 
     # Delete any "script" sessions
     delete_sessions(local_path + "DICOMs/", "script")
     delete_sessions(local_path + "DICOMs/", "Bone Scan")
 
     # if there are no DICOMs to process, then exit
-    if len(glob(local_path + "DICOMs/*/*")) == 0:
-        logger.info("No DICOMs found. Exiting.")
+    if len(glob(local_path + "DICOMs/*/*/*")) == 0: # checks if there are any acquisition dir's
+        logger.info(f"'No DICOMs found. Exiting.") # if there are no valid DICOMs to proces, then exit (still add the uuid to the RDS)
     else:
         # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
         logger.info("Commencing de-identification process...")
-        missing_ses_flag,missing_subj_id_flag = run_deid(local_path, args.program)
+        missing_ses_flag, missing_subj_id_flag = run_deid(local_path, args.program)
 
         if missing_ses_flag:
             raise AttributeError(
                 "Unable to generate session label."
                 )
+            sys.exit(1)
         if missing_subj_id_flag:
             raise LookupError(
                 "Unable to find subject ID."
             )
+            sys.exit(1)
         else:
             logger.info('Uploading "safe" files to Flywheel...')
             upload2fw(args)
@@ -241,15 +245,15 @@ def run(args) -> int:
             if os.path.exists(local_path + "NIfTIs_short_json/"):
                 logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
 
-            try:
-                logger.info("Updating list of UUIDs...")
-                import_uuids_from_set(args.uuid)
-            except IntegrityError as error:
-                logger.error(
-                    "Unable to mark %d UUID(s) as processed. The UUID(s) already exist in the database: %r",
-                    len(args.uuid),
-                    error,
-                )
+    try:
+        logger.info("Updating list of UUIDs...")
+        import_uuids_from_set(args.uuid)
+    except IntegrityError as error:
+        logger.error(
+            "Unable to mark %d UUID(s) as processed. The UUID(s) already exist in the database: %r",
+            len(args.uuid),
+            error,
+        )
 
     return 0
 
