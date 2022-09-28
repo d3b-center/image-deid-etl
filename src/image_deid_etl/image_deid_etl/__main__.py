@@ -205,8 +205,8 @@ def run(args) -> int:
         )
 
     # Remove any acquisitions/sessions that we don't want to process.
-    delete_acquisitions_by_modality(local_path + "DICOMs/", "OT")
-    delete_acquisitions_by_modality(local_path + "DICOMs/", "SR")
+    delete_acquisitions_by_modality(local_path + "DICOMs/", "OT") # other
+    delete_acquisitions_by_modality(local_path + "DICOMs/", "SR") # SR Document
     delete_acquisitions_by_modality(local_path + "DICOMs/", "XA") # X-Ray Angiography
     delete_acquisitions_by_modality(local_path + "DICOMs/", "US") # ultrasound
 
