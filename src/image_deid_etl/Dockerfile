@@ -1,3 +1,4 @@
+# ========= config AWS CLI ======================
 FROM debian:bullseye-slim AS awscli2-builder
 
 RUN set -ex \
@@ -10,12 +11,13 @@ RUN set -ex \
     # present in /usr/local/bin of the installer stage.
     && ./aws/install --bin-dir /aws-cli-bin/
 
+#  ========= config dcm2niix =====================
 FROM debian:bullseye-slim AS dcm2niix-builder
 
 # We need to build our own version of dcm2niix because there hasn't been a
 # release since @neurolabusc fixed
 # https://github.com/rordenlab/dcm2niix/issues/566.
-ENV DCM2NIIX_VERSION="002ebcdb9b2a87de7b883e9ddada3963a1cc2327"
+#ENV DCM2NIIX_VERSION="002ebcdb9b2a87de7b883e9ddada3963a1cc2327"
 
 RUN mkdir -p /usr/local/src
 WORKDIR /usr/local/src
@@ -25,9 +27,20 @@ RUN set -ex \
     # The external CMake projects are referenced with the deprecated git:// protocol.
     && git config --global url."https://".insteadOf git:// \
     && git clone https://github.com/rordenlab/dcm2niix.git && cd dcm2niix \
-    && git checkout "$DCM2NIIX_VERSION" \
     && mkdir build && cd build  \
     && cmake -DBATCH_VERSION=OFF -DUSE_OPENJPEG=ON -DUSE_JPEGLS=true -DZLIB_IMPLEMENTATION=Cloudflare ..  && make
+
+#  ========= config libdcm-tools (GDCM utility package) =====================
+FROM ubuntu:focal AS gdcm-builder
+
+RUN mkdir -p /usr/local/src
+WORKDIR /usr/local/src
+
+RUN apt-get update && apt-get install -y libgdcm-tools \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# ========= config Flywheel CLI =====================
 
 FROM debian:bullseye-slim AS flywheel-cli-builder
 
@@ -40,6 +53,8 @@ RUN set -ex \
     && apt-get update && apt-get install -y ca-certificates curl unzip --no-install-recommends \
     && curl "https://storage.googleapis.com/flywheel-dist/cli/$FLYWHEEL_VERSION/fw-linux_amd64-$FLYWHEEL_VERSION.zip" -o "flywheel-cli.zip" \
     && unzip flywheel-cli.zip
+
+# ========= config Python packages =====================
 
 FROM python:3.9-slim-bullseye
 
@@ -67,6 +82,8 @@ RUN set -ex \
     && apt-get purge -y --auto-remove $buildDeps \
     && rm -rf /var/lib/apt/lists/*
 
+# ========= finalize =====================
+
 COPY . /usr/local/src/
 
 RUN set -ex \
@@ -82,3 +99,6 @@ COPY --from=awscli2-builder /aws-cli-bin/ /usr/local/bin/
 COPY --from=dcm2niix-builder /usr/local/src/dcm2niix/build/bin/dcm2niix /usr/local/bin/dcm2niix
 # Install the Flywheel CLI.
 COPY --from=flywheel-cli-builder /usr/local/src/linux_amd64/fw /usr/local/bin/fw
+# Install GDCM package libdcm-tools.
+COPY --from=gdcm-builder /usr/bin/ /usr/local/bin/
+COPY --from=gdcm-builder /lib/x86_64-linux-gnu/ /lib/x86_64-linux-gnu/
