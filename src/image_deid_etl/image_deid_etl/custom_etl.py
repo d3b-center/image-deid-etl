@@ -138,6 +138,7 @@ def make_session_labels(input_df,fields_to_use):
     for ind,row in input_df.iterrows(): # for each session
         subject_dob=row['DOB']
         date_of_imaging = row['ImagingDate']
+        time_of_imaging = row['ImagingTime']
         accession = row['accession_num']
         req_desc = row['RequestedProcDesc']
         perf_desc = row['PerformedProcDesc']
@@ -152,12 +153,16 @@ def make_session_labels(input_df,fields_to_use):
                     desc = row[this_field]
                     # print(row['Last Name'])
                     body_part_examined = get_body_part_examined(desc)
+        if len(time_of_imaging)<4:
+            study_time=''
+        else:
+            study_time='_'+time_of_imaging[0:2]+'h'+time_of_imaging[2:4]+'m'
         if (subject_dob == 19010101) or (subject_dob == []) or (date_of_imaging == []) or (body_part_examined == []):
             # print('Not enough info in DICOM header to create session labels for '+ses)
             missing_sessions.append(accession)
         else:
             age_in_days_at_imaging = abs((date_of_imaging - subject_dob).days)
-            session_labels.append(str(age_in_days_at_imaging)+'d_'+body_part_examined)
+            session_labels.append(str(age_in_days_at_imaging)+'d_'+body_part_examined+study_time)
             accession_numbers.append(accession)
             req_descs.append(req_desc)
             perf_descs.append(perf_desc)
@@ -174,6 +179,7 @@ def get_dicom_fields(data_dir):
     accession_numbers=[]
     dobs=[]
     events=[]
+    study_times=[]
     req_proc=[]
     perf_proc=[]
     study=[]
@@ -184,6 +190,7 @@ def get_dicom_fields(data_dir):
             if ('NIfTIs' not in ses) and (len(os.listdir(ses)) != 0): # if directory is not empty
                 subject_dob = []
                 date_of_imaging = []
+                time_of_imaging = []
                 accession=[]
                 study_desc=[]
                 req_proc_desc=[]
@@ -202,6 +209,12 @@ def get_dicom_fields(data_dir):
                             # date_of_imaging = ds[0x08,0x22].value # acquisition date
                         except:
                             date_of_imaging = []
+                    if time_of_imaging == []:
+                        try:
+                            # 070907.0705 represents a time of 7 hours, 9 minutes and 7.0705 seconds.
+                            time_of_imaging = ds[0x08,0x30].value # study time (0008,0030)
+                        except:
+                            time_of_imaging = []
                     if accession == []:
                         try:
                             accession = ds[0x08,0x50].value
@@ -231,6 +244,7 @@ def get_dicom_fields(data_dir):
                 accession_numbers.append(accession)
                 dobs.append(subject_dob)
                 events.append(date_of_imaging)
+                study_times.append(time_of_imaging)
                 req_proc.append(req_proc_desc)
                 perf_proc.append(perf_proc_desc)
                 study.append(study_desc)
@@ -241,6 +255,8 @@ def get_dicom_fields(data_dir):
         dobs=''
     elif (len(events)==1) and (events[0]==[]):
         events=''
+    elif (len(study_times)==1) and (study_times[0]==[]):
+        study_times=''
     elif (len(req_proc)==1) and (req_proc[0]==[]):
         req_proc=''
     elif (len(perf_proc)==1) and (perf_proc[0]==[]):
@@ -250,6 +266,7 @@ def get_dicom_fields(data_dir):
     return pd.DataFrame({'accession_num': accession_numbers,\
                             'DOB':dobs, \
                             'ImagingDate':events, \
+                            'ImagingTime':study_times, \
                             'RequestedProcDesc':req_proc, \
                             'PerformedProcDesc':perf_proc, \
                             'StudyDesc':study} )
