@@ -14,10 +14,8 @@ RUN set -ex \
 #  ========= config dcm2niix =====================
 FROM debian:bullseye-slim AS dcm2niix-builder
 
-# We need to build our own version of dcm2niix because there hasn't been a
-# release since @neurolabusc fixed
-# https://github.com/rordenlab/dcm2niix/issues/566.
-#ENV DCM2NIIX_VERSION="002ebcdb9b2a87de7b883e9ddada3963a1cc2327"
+# Specify version of dcm2niix release
+ENV DCM2NIIX_VERSION="bb3a6c35d2bbac6ed95acb2cd0df65f35e79b5fb"
 
 RUN mkdir -p /usr/local/src
 WORKDIR /usr/local/src
@@ -27,6 +25,7 @@ RUN set -ex \
     # The external CMake projects are referenced with the deprecated git:// protocol.
     && git config --global url."https://".insteadOf git:// \
     && git clone https://github.com/rordenlab/dcm2niix.git && cd dcm2niix \
+    && git checkout "$DCM2NIIX_VERSION" \
     && mkdir build && cd build  \
     && cmake -DBATCH_VERSION=OFF -DUSE_OPENJPEG=ON -DUSE_JPEGLS=true -DZLIB_IMPLEMENTATION=Cloudflare ..  && make
 
