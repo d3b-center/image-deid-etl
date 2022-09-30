@@ -232,7 +232,7 @@ def run(args) -> int:
                 "Unable to find subject ID."
             )
             sys.exit(1)
-        elif len(glob(local_path + "NIfTIs/*/*/*/*")) == 0: # checks if there are any acquisition dir's
+        elif len(glob(local_path + "NIfTIs/*/*/*/*/*.nii.gz")) == 0: # checks if there are any niftis in the acquisition dir's
             logger.info(f"'No valid NIfTIs found. Exiting.") # if there are no valid NIfTIs to proces, then exit (still add the uuid to the RDS)
         else:
             logger.info('Uploading "safe" files to Flywheel...')
