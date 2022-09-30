@@ -216,7 +216,7 @@ def run(args) -> int:
 
     # if there are no DICOMs to process, then exit
     if len(glob(local_path + "DICOMs/*/*/*")) == 0: # checks if there are any acquisition dir's
-        logger.info(f"'No DICOMs found. Exiting.") # if there are no valid DICOMs to proces, then exit (still add the uuid to the RDS)
+        logger.info(f"No DICOMs found. Exiting.") # if there are no valid DICOMs to proces, then exit (still add the uuid to the RDS)
     else:
         # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
         logger.info("Commencing de-identification process...")
@@ -227,11 +227,13 @@ def run(args) -> int:
                 "Unable to generate session label."
                 )
             sys.exit(1)
-        if missing_subj_id_flag:
+        elif missing_subj_id_flag:
             raise LookupError(
                 "Unable to find subject ID."
             )
             sys.exit(1)
+        elif len(glob(local_path + "NIfTIs/*/*/*/*")) == 0: # checks if there are any acquisition dir's
+            logger.info(f"'No valid NIfTIs found. Exiting.") # if there are no valid NIfTIs to proces, then exit (still add the uuid to the RDS)
         else:
             logger.info('Uploading "safe" files to Flywheel...')
             upload2fw(args)
