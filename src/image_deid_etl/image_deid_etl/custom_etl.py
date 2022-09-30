@@ -370,12 +370,28 @@ def filter_sidecars(data_dir):
                 json.dump(json_file, outfile)
 
 def convert_dicom2nifti(data_dir):
+# dcm2niix options:
+#   -b : BIDS sidecar (y/n/o [o=only: no NIfTI], default y)
+#       -ba: anonymize BIDS (y/n, default y)
+#   -f : filename %d=description
+#   -p : Philips precise float (not display) scaling (y/n, default y)
+#   -z : gz compress images (y/o/i/n/3, default n)
+#   -v : verbose (n/y or 0/1/2, default 0)
+#   -w : write behavior for name conflicts (0,1,2, default 2: 0=skip duplicates, 1=overwrite, 2=add suffix)
     acq_list = glob(data_dir+'/*/*/*')
     ## convert all acquisitions using Chris Rorden's dcm2niix with anon BIDS sidecar enabled
     for acquisition in acq_list:
         # print(acquisition)
         if glob(acquisition+'/*.nii.gz')==[]: # if there are no niftis already in the directory
             os.system('dcm2niix -b y -ba y -f ''"%d"'' -p y -z y -v 0 ''"'+acquisition+'"'' ')
+            # if there are STILL no niftis or if dcm2niix returns an error code,
+            # try decompressing the DICOMs first with the GDCM tool gdcmconv
+            # (this should handle errors with JPEG2000 compression in OpenJPEG within dcm2niix)
+            exit_code = os.popen('echo $?').readlines()[0].strip('\n')
+            if (glob(acquisition+'/*.nii.gz')==[]) or (exit_code != '0'): 
+                for file_path in glob(acquisition+'/*.dcm'):
+                    os.system(f'gdcmconv -w "{file_path}" "{file_path}"  ')
+                os.system('dcm2niix -w 1 -b y -ba y -f ''"%d"'' -p y -z y -v 0 ''"'+acquisition+'"'' ') # now re-try the conversion
             # add voxel dimensions to sidecar
             if glob(acquisition+'/*.nii.gz'): # if there are NIfTIs for this acquisition
                 sidecars = glob(acquisition+'/*.json')
