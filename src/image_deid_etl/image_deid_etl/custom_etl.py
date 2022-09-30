@@ -389,8 +389,8 @@ def convert_dicom2nifti(data_dir):
             # (this should handle errors with JPEG2000 compression in OpenJPEG within dcm2niix)
             exit_code = os.popen('echo $?').readlines()[0].strip('\n')
             if (glob(acquisition+'/*.nii.gz')==[]) or (exit_code != '0'): 
-                for file_path in glob(acquisition+'/*.dcm'):
-                    os.system(f'gdcmconv -w "{file_path}" "{file_path}"  ')
+                for file_path in glob(acquisition+'/*.dcm'): # for each DICOM file
+                    os.system(f'gdcmconv -w "{file_path}" "{file_path}"  ') # -w flag for decompression
                 os.system('dcm2niix -w 1 -b y -ba y -f ''"%d"'' -p y -z y -v 0 ''"'+acquisition+'"'' ') # now re-try the conversion
             # add voxel dimensions to sidecar
             if glob(acquisition+'/*.nii.gz'): # if there are NIfTIs for this acquisition
