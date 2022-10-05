@@ -8,6 +8,28 @@ import flywheel
 
 logger = logging.getLogger(__name__)
 
+def confirm_proj_exists(fw_client: flywheel.Client, flywheel_group: str, data_dir: str):
+    # check if project already exists on Flywheel,
+    # if not then create it & add users based on group Projects Template
+    fw_proj_dirs = glob(data_dir+'*')
+    for proj_path in fw_proj_dirs:
+        fw_proj_label = proj_path.split('/')[-1]
+        try:
+            fw_client.lookup(os.path.join(flywheel_group, fw_proj_label))
+        except:
+            logger.info(f'Creating new Flywheel project:{fw_proj_label}')
+            group = fw_client.get(flywheel_group)
+            project = group.add_project(label = fw_proj_label)
+            project_id = project['id']
+            existing_perms = project['permissions']
+            existing_usrs = []
+            for perm in existing_perms:
+                existing_usrs.append(perm['_id'])
+            logger.info(f'Adding users to new Flywheel project {fw_proj_label} based on group Projects Template')
+            for grp_usr in group['permissions_template']:
+                usr_id = grp_usr['_id']
+                if usr_id not in existing_usrs:
+                    fw_client.add_project_permission(project_id, grp_usr)
 
 def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, data_dir: str):
 # for all JSON sidecar files on the local system, 

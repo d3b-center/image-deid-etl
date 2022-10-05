@@ -216,7 +216,7 @@ def run(args) -> int:
 
     # if there are no DICOMs to process, then exit
     if len(glob(local_path + "DICOMs/*/*/*")) == 0: # checks if there are any acquisition dir's
-        logger.info(f"No DICOMs found. Exiting.") # if there are no valid DICOMs to proces, then exit (still add the uuid to the RDS)
+        logger.info(f"'No DICOMs found. Exiting.") # if there are no valid DICOMs to proces, then exit (still add the uuid to the RDS)
     else:
         # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
         logger.info("Commencing de-identification process...")
@@ -227,14 +227,15 @@ def run(args) -> int:
                 "Unable to generate session label."
                 )
             sys.exit(1)
-        elif missing_subj_id_flag:
+        if missing_subj_id_flag:
             raise LookupError(
                 "Unable to find subject ID."
             )
             sys.exit(1)
-        elif len(glob(local_path + "NIfTIs/*/*/*/*/*.nii.gz")) == 0: # checks if there are any niftis in the acquisition dir's
-            logger.info(f"'No valid NIfTIs found. Exiting.") # if there are no valid NIfTIs to proces, then exit (still add the uuid to the RDS)
         else:
+            logger.info('Updating target Flywheel project with version info...')
+            change_fw_proj_version(args, 'v2')
+
             logger.info('Uploading "safe" files to Flywheel...')
             upload2fw(args)
 
@@ -259,6 +260,27 @@ def run(args) -> int:
 
     return 0
 
+def change_fw_proj_version(args, ver_label) -> int:
+    from image_deid_etl.custom_flywheel import confirm_proj_exists
+    source_path = f"{args.program}/{args.site}/NIfTIs/"
+
+    if not os.path.exists(source_path):
+        raise FileNotFoundError(
+            f"ERROR AT change_fw_proj_version: {source_path} directory does not exist. Is sub_mapping empty?"
+        )
+
+    # change local directory names appropriately
+    logger.info('Appending version number to target Flywheel project label')
+    fw_proj_dirs = glob(source_path+'*')
+    for proj_path in fw_proj_dirs:
+        fw_proj_label = proj_path.split('/')[-1]
+        new_label = fw_proj_label+'_'+ver_label
+        new_path = os.path.join(source_path, new_label)
+        os.rename(proj_path, new_path)
+
+    # make sure the project exists on the Flywheel instance (if not, create a new project)
+    fw_client = flywheel.Client(api_key=FLYWHEEL_API_KEY)
+    confirm_proj_exists(fw_client, FLYWHEEL_GROUP, source_path)
 
 def upload2fw(args) -> int:
     # This is a hack so that the Flywheel CLI can consume credentials from the
@@ -277,7 +299,7 @@ def upload2fw(args) -> int:
 
         if not os.path.exists(source_path):
             raise FileNotFoundError(
-                f"{source_path} directory does not exist. Is sub_mapping empty?"
+                f"ERROR AT upload2fw: {source_path} directory does not exist. Is sub_mapping empty?"
             )
 
         for fw_project in next(os.walk(source_path))[1]:  # for each project dir
