@@ -159,6 +159,11 @@ def download_unpack_copy(orthanc_url, uuid, data_dir, ses_mod_to_skip):
         os.makedirs(data_dir)
 
     info = get_series_metadata(orthanc_url,uuid)
+    if 'HttpError' in info:
+        raise AttributeError(
+            "Unable to retrieve study UUID from Orthanc. Invalid study UUID? Orthanc instance up and running?"
+            )
+        sys.exit(1)
     modality = info[0]['MainDicomTags']['Modality']
     if modality not in ses_mod_to_skip:
         output_path = f"{data_dir}{uuid}.zip"
