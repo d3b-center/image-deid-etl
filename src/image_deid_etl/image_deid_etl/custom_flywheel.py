@@ -20,7 +20,7 @@ def confirm_proj_exists(fw_client: flywheel.Client, flywheel_group: str, data_di
             logger.info(f'Creating new Flywheel project:{fw_proj_label}')
             group = fw_client.get(flywheel_group)
             project = group.add_project(label = fw_proj_label)
-            project_id = project['id']
+            project_id = project['_id']
             existing_perms = project['permissions']
             existing_usrs = []
             for perm in existing_perms:
