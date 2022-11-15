@@ -301,9 +301,7 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
         sub_df = pd.concat([sub_df,sub_df2],ignore_index=True)
     # get the session labels based on DICOM fields
     dicom_info = get_dicom_fields(data_dir)
-    sub_df = pd.merge(sub_df, dicom_info, on='accession_num') # assumes there are accession #s for all rows in both df's
-    if len(sub_df) > 1:
-        sub_df = sub_df.loc[sub_df.astype(str).drop_duplicates().index]
+    sub_df = pd.concat([sub_df, dicom_info],axis=1) # assumes only 1 row (1 study being processed)
     # if there are subjects missing DOB, try to fill values from other studies on Orthanc
     if (not sub_df[sub_df['DOB']==''].empty):
         for ind, row in sub_df.iterrows():
@@ -332,36 +330,10 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
     sub_df.loc[sub_df['RequestedProcDesc'].astype(str)=="[]",["RequestedProcDesc"]]=' '
     # find session labels
     ses_labels,missing_ses = make_session_labels(sub_df,['PerformedProcDesc','StudyDesc','RequestedProcDesc'])
-    sub_df = sub_df.merge(ses_labels,on=['accession_num','PerformedProcDesc','StudyDesc','RequestedProcDesc'])
-    # if there are repeated session labels for diff accessions w/in subj, append a # to the end to split them
-    for sub in sub_df['mrn'].unique().tolist():
-        sub_rows=sub_df[sub_df['mrn']==sub]
-        duplicate_rows = sub_rows[sub_rows.duplicated(subset=['session_label'],keep=False)] # select duplicate rows only
-        if (not duplicate_rows.empty) and (len(duplicate_rows['accession_num'].unique().tolist()) > 1):
-            sub_df = sub_df[sub_df['mrn']!=sub] # drop subject rows from main df
-            non_duplicate_rows = sub_rows[~sub_rows.duplicated(subset=['session_label'],keep=False)] # select duplicate rows only
-            for session in duplicate_rows['session_label'].unique().tolist():
-                session_rows = duplicate_rows[duplicate_rows['session_label']==session]
-                accessions=[]
-                first_row=0
-                num_ending=0
-                for ind,row in session_rows.iterrows():
-                    if (row['accession_num'] not in accessions):
-                        if (first_row==0): # if it's the first row
-                            non_duplicate_rows = non_duplicate_rows.append(row, ignore_index=True)
-                            accessions.append(row['accession_num'])
-                            first_row = 1
-                        else:
-                            row['session_label']=row['session_label']+'_'+str(num_ending)
-                            num_ending+=1
-                            non_duplicate_rows = non_duplicate_rows.append(row, ignore_index=True)
-                            accessions.append(row['accession_num'])
-            # add back subject rows to main df
-            sub_df = sub_df.append(non_duplicate_rows, ignore_index=True)
+    sub_df = sub_df.merge(ses_labels,on=['PerformedProcDesc','StudyDesc','RequestedProcDesc'])
     # generate output
     sub_df,missing_c_ids = split_missing_values(sub_df,'CBTN Subject ID')
     sub_df = sub_df.drop(columns=['MRN'])
-    # sub_df = sub_df[['mrn','accession_num','C_ID','session_label']].dropna().reset_index(drop=True)
     sub_df = sub_df.rename(columns={'CBTN Subject ID': 'C_ID'})
     return sub_df,missing_c_ids,missing_ses
 
@@ -530,7 +502,7 @@ def structure_nifti_files(data_dir,sub_mapping,output_dir,program):
 # use input df & info in JSON sidecars to create output directories
 #   move nifti, json, bval/bvec files to output dir's (leaving DICOMs in place)
     ## make target directories & move output files there
-    session_list = glob(data_dir+'*/*')
+    data_path = glob(data_dir+'*/*')[0] # assumes only 1 session (1 study being processed)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir) # parent directory
     for index,row in sub_mapping.iterrows():
@@ -544,10 +516,6 @@ def structure_nifti_files(data_dir,sub_mapping,output_dir,program):
         if not os.path.exists(session_dir_in):
             os.makedirs(session_dir_in)
         # move the files
-        ## included study description b/c accession #s can be duplicated across sessions, want to keep them split
-        accession_number = row['accession_num']
-        dicom_ses_label = accession_number
-        data_path = [i for i in session_list if dicom_ses_label in i][0] # source path for this session
         acq_list = glob(data_path+'/*')
         # for each acquisition, construct the acquisition label based on sidecar info
         # print(acq_list)
