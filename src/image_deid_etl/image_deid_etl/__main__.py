@@ -19,7 +19,6 @@ from image_deid_etl.database import (
 )
 from image_deid_etl.exceptions import ImproperlyConfigured
 from image_deid_etl.main_pipeline import validate_info, run_deid
-from image_deid_etl.orthanc import get_orthanc_url, get_uuids, download_unpack_copy
 
 ENVIRONMENT = os.getenv("IMAGE_DEID_ETL_ENV", "Development")
 VALID_ENVIRONMENTS = ("Production", "Staging", "Development")
@@ -196,13 +195,18 @@ def run(args) -> int:
 
     local_path = f"{args.program}/{args.site}/"
 
-    for uuid in args.uuid:
-        download_unpack_copy(
-            get_orthanc_url(),
-            uuid,
-            local_path + "DICOMs/",
-            args.skip_modalities,
-        )
+    if args.source == 'orthanc':
+        from image_deid_etl.orthanc import get_orthanc_url, get_uuids, download_unpack_copy
+        for uuid in args.uuid:
+            download_unpack_copy(
+                get_orthanc_url(),
+                uuid,
+                local_path + "DICOMs/",
+                args.skip_modalities,
+            )
+        orthanc_flag = 1
+    else:
+        orthanc_flag = 0
 
     # Remove any acquisitions/sessions that we don't want to process.
     delete_acquisitions_by_modality(local_path + "DICOMs/", "OT") # other
@@ -220,7 +224,7 @@ def run(args) -> int:
     else:
         # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
         logger.info("Commencing de-identification process...")
-        missing_ses_flag, missing_subj_id_flag = run_deid(local_path, args.program)
+        missing_ses_flag, missing_subj_id_flag = run_deid(local_path, args.program, orthanc_flag)
 
         if missing_ses_flag:
             raise AttributeError(
@@ -247,16 +251,17 @@ def run(args) -> int:
                 logger.info("There are files to check in: " + local_path + "NIfTIs_to_check/")
             if os.path.exists(local_path + "NIfTIs_short_json/"):
                 logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
-
-    try:
-        logger.info("Updating list of UUIDs...")
-        import_uuids_from_set(args.uuid)
-    except IntegrityError as error:
-        logger.error(
-            "Unable to mark %d UUID(s) as processed. The UUID(s) already exist in the database: %r",
-            len(args.uuid),
-            error,
-        )
+    
+    if orthanc_flag:
+        try:
+            logger.info("Updating list of UUIDs...")
+            import_uuids_from_set(args.uuid)
+        except IntegrityError as error:
+            logger.error(
+                "Unable to mark %d UUID(s) as processed. The UUID(s) already exist in the database: %r",
+                len(args.uuid),
+                error,
+            )
 
     return 0
 
@@ -335,20 +340,8 @@ def main() -> int:
         "images, and uploading to Flywheel.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "--program",
-        nargs="?",
-        default="cbtn",
-        choices=["cbtn", "corsica"],
-        help="program namespace",
-    )
-    parser.add_argument(
-        "--site",
-        nargs="?",
-        default="chop",
-        help="site namespace",
-    )
-    parser.set_defaults(func=lambda x: parser.print_usage())
+
+    # parser.set_defaults(func=lambda x: parser.print_usage())
 
     subparsers = parser.add_subparsers()
 
@@ -403,7 +396,27 @@ def main() -> int:
         help="space-delimited list of modalities to skip",
     )
     parser_run.add_argument(
-        "uuid", nargs="+", help="space-delimited list of UUIDs to process"
+        # "uuid", help="space-delimited list of UUIDs to process"
+        "--uuid", nargs="+", help="space-delimited list of UUIDs to process"
+    )
+    parser_run.add_argument(
+        "--program",
+        nargs="?",
+        default="cbtn",
+        choices=["cbtn", "corsica"],
+        help="program namespace",
+    )
+    parser_run.add_argument(
+        "--site",
+        nargs="?",
+        default="chop",
+        help="site namespace",
+    )
+    parser_run.add_argument(
+        "--source",
+        nargs="?",
+        default="orthanc",
+        help="file source",
     )
     parser_run.set_defaults(func=run)
 
