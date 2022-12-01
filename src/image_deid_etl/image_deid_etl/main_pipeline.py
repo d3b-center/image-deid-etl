@@ -18,7 +18,7 @@ if SUBJECT_ID_MAPPING_PATH is None:
     )
 
 
-def subject_info(local_path, program, file_dir, validate=0):
+def subject_info(local_path, program, file_dir, orthanc_flag, validate=0):
     # site_name = local_path.split('/')[1]
     logger.info('Getting subject ids.')
     sub_info = get_subject_info_dir(local_path) # sub_info = get_subject_info_dicoms(local_path) # slower b/c iterates over all DICOM files, doesn't depend on dir structure/names though
@@ -33,7 +33,7 @@ def subject_info(local_path, program, file_dir, validate=0):
             logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
             sys.exit(1)
         try:
-            sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(cbtn_all_df,sub_info,local_path)
+            sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(cbtn_all_df,sub_info,local_path,orthanc_flag)
         except ValueError as error:
             logger.error("Error in getting CBTN subject mapping: %r", error)
             sys.exit(1)
@@ -73,10 +73,10 @@ def subject_info(local_path, program, file_dir, validate=0):
     else:
         return sub_mapping, missing_ses_flag, missing_subj_id_flag
 
-def validate_info(local_path, program, file_dir):
+def validate_info(local_path, program, file_dir, orthanc_flag):
     # save a CSV of the subject mapping & DICOM fields to review
     sub_mapping,sub_missing_c_ids,sub_missing_ses,sub_missing_proj = subject_info(local_path + 'DICOMs/', program,
-                                                                                  file_dir, 1)
+                                                                                  file_dir, orthanc_flag, 1)
     output_fn = file_dir+'sub_mapping_'+todays_date+'.csv'
     sub_mapping.to_csv(output_fn,index=False)
     print('Mapping created: '+output_fn)
@@ -93,12 +93,12 @@ def validate_info(local_path, program, file_dir):
             sub_list=sub_missing_proj['accession_num'].unique().tolist()
             print('Accessions missing projects '+', '.join(sub_list))
 
-def run_deid(local_path, program):
+def run_deid(local_path, program, orthanc_flag):
     file_dir = local_path+'files/'
     # The "files/" directory path needs to exist, otherwise subject_info will fail to write the csv files. Equivalent
     # to mkdir -p.
     os.makedirs(file_dir, exist_ok=True)
-    sub_mapping, missing_ses_flag, missing_subj_id_flag = subject_info(local_path + 'DICOMs/', program, file_dir)
+    sub_mapping, missing_ses_flag, missing_subj_id_flag = subject_info(local_path + 'DICOMs/', program, file_dir, orthanc_flag)
     if missing_ses_flag or missing_subj_id_flag:
         return missing_ses_flag,missing_subj_id_flag
     else:
