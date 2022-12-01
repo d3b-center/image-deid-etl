@@ -68,12 +68,14 @@ def get_subject_info_dir(data_dir):
     mrns = [i.lstrip('0') if i.startswith('0') else i for i in mrns] # strip leading 0s from any mrn
     last_names = [x.split(' ')[1] for x in dir_list]
     first_names = [x.split(' ')[2].split('/')[0] for x in dir_list]
+    full_names = [(''.join(x.split(' ')[1:])).split('/')[0] for x in dir_list]
     accessions = [x.split('/')[1].split(' ')[0] for x in dir_list]
-    return pd.DataFrame({'mrn': mrns, 'accession_num': accessions, 'first_name':first_names, 'last_name':last_names})
+    return pd.DataFrame({'mrn': mrns, 'accession_num': accessions, 'first_name':first_names, 'last_name':last_names, 'full_name':full_names})
 
 def get_body_part_examined(desc):
     abbrv=[]
     parts=[]
+    desc = str(desc)
     if ('brain' in desc.lower()) \
     or ('head' in desc.lower()) \
     or ('stealth' in desc.lower()) \
@@ -277,9 +279,28 @@ def split_missing_values(input_df,col_name):
     out_df = input_df.dropna().reset_index(drop=True) # rows w/o missing values
     return out_df,missing_df
 
-def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
-    from image_deid_etl.orthanc import get_orthanc_url,get_patient_metadata,get_patient_uuid_from_mrn
-    orthanc_url = get_orthanc_url()
+def fuzzy_merge(df_1, df_2, key1, key2, threshold=90, limit=1):
+    from fuzzywuzzy import process
+    """
+    :param df_1: the left table to join
+    :param df_2: the right table to join
+    :param key1: key column of the left table
+    :param key2: key column of the right table
+    :param threshold: how close the matches should be to return a match, based on Levenshtein distance
+    :param limit: the amount of matches that will get returned, these are sorted high to low
+    :return: dataframe with boths keys and matches
+    """
+    s = df_2[key2].tolist()
+    m = df_1[key1].apply(lambda x: process.extract(x, s, limit=limit))
+    df_1['matches'] = m
+    m2 = df_1['matches'].apply(lambda x: ', '.join([i[0] for i in x if i[1] >= threshold]))
+    df_1['matches'] = m2
+    return df_1
+
+def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir,orthanc_flag):
+    if orthanc_flag:
+        from image_deid_etl.orthanc import get_orthanc_url,get_patient_metadata,get_patient_uuid_from_mrn
+        orthanc_url = get_orthanc_url()
     # map MRN to C-ID
     cbtn_df_sub = cbtn_df[['CBTN Subject ID','MRN','First Name','Last Name']].drop_duplicates()
     sub_info['mrn'] = sub_info['mrn'].astype(str)
@@ -287,8 +308,11 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
     cbtn_df_sub['MRN'] = cbtn_df_sub['MRN'].str.lstrip('0')
     sub_info['first_name'] = sub_info['first_name'].astype(str).str.lower()
     sub_info['last_name'] = sub_info['last_name'].astype(str).str.lower()
+    sub_info['full_name'] = sub_info['full_name'].astype(str).str.lower()
     cbtn_df_sub['First Name'] = cbtn_df_sub['First Name'].astype(str).str.lower()
     cbtn_df_sub['Last Name'] = cbtn_df_sub['Last Name'].astype(str).str.lower()
+    cbtn_df_sub['full_name'] = cbtn_df_sub['Last Name']+cbtn_df_sub['First Name']
+    cbtn_df_sub['full_name'] = cbtn_df_sub['full_name'].str.replace('[^a-zA-Z]', '') # remove all non alphanumeric chars
     # force format of DOB column so that it can be handled properly
     cbtn_df['DOB'] = pd.to_datetime(cbtn_df.DOB)
     cbtn_df['DOB'] = cbtn_df['DOB'].dt.strftime('%m/%d/%y')
@@ -297,13 +321,17 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
     # if any are still missing C-ID, try FirstName/LastName
     sub_df, missing_c_ids = split_missing_values(sub_df,'CBTN Subject ID')
     if not missing_c_ids.empty:
-        sub_df2 = pd.merge(missing_c_ids,cbtn_df_sub,how='left',left_on=['last_name','first_name'],right_on=['Last Name','First Name'])
-        sub_df = pd.concat([sub_df,sub_df2],ignore_index=True)
+        missing_c_ids = missing_c_ids.rename(columns={'full_name_x':'full_name'})
+        temp_df = fuzzy_merge(missing_c_ids, cbtn_df_sub, 'full_name', 'full_name', threshold=97)
+        if temp_df['matches'][0]!='': # if there are matches
+            sub_df2 = pd.merge(temp_df,cbtn_df_sub,how='left',left_on=['matches'],right_on=['full_name'])
+            # print(sub_df2)
+            sub_df = pd.concat([sub_df,sub_df2],ignore_index=True)
     # get the session labels based on DICOM fields
     dicom_info = get_dicom_fields(data_dir)
     sub_df = pd.concat([sub_df, dicom_info],axis=1) # assumes only 1 row (1 study being processed)
     # if there are subjects missing DOB, try to fill values from other studies on Orthanc
-    if (not sub_df[sub_df['DOB']==''].empty):
+    if (not sub_df[sub_df['DOB']==''].empty) & orthanc_flag==1:
         for ind, row in sub_df.iterrows():
             if (row['DOB']==''):
                 dob = []
