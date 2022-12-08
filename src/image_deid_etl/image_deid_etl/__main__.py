@@ -224,7 +224,7 @@ def run(args) -> int:
     else:
         # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
         logger.info("Commencing de-identification process...")
-        missing_ses_flag, missing_subj_id_flag = run_deid(local_path, args.program, orthanc_flag)
+        missing_ses_flag, missing_subj_id_flag = run_deid(local_path, args.program, orthanc_flag, args.sub_id_mapping)
 
         if missing_ses_flag:
             raise AttributeError(
@@ -388,6 +388,10 @@ def main() -> int:
         "--batch",
         action="store_true",
         help="skip local processing and submit job(s) to AWS Batch",
+    )
+    parser_run.add_argument(
+        "--sub_id_mapping",
+        help="input CSV with list to use for sub ID mapping (optional)",
     )
     parser_run.add_argument(
         "--skip-modalities",

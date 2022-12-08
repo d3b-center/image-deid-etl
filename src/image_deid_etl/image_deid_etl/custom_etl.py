@@ -297,7 +297,7 @@ def fuzzy_merge(df_1, df_2, key1, key2, threshold=90, limit=1):
     df_1['matches'] = m2
     return df_1
 
-def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir,orthanc_flag):
+def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir,orthanc_flag,sub_mapping):
     if orthanc_flag:
         from image_deid_etl.orthanc import get_orthanc_url,get_patient_metadata,get_patient_uuid_from_mrn
         orthanc_url = get_orthanc_url()
@@ -316,8 +316,15 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir,orthanc_flag):
     # force format of DOB column so that it can be handled properly
     cbtn_df['DOB'] = pd.to_datetime(cbtn_df.DOB)
     cbtn_df['DOB'] = cbtn_df['DOB'].dt.strftime('%m/%d/%y')
-    # get cbtn info for this specific subject
-    sub_df = pd.merge(sub_info, cbtn_df_sub, how='left', left_on=['mrn'], right_on=['MRN'])
+    if sub_mapping:
+        input_df = pd.read_csv(sub_mapping) # no empty rows (MRN="NA")
+        # input_df['MRN'] = input_df['MRN'].astype(int).round().astype(str)
+        input_df['MRN'] = input_df['MRN'].astype(str)
+        input_df['MRN'] = input_df['MRN'].str.lstrip('0')
+        sub_df   = pd.merge(sub_info, input_df, how='left', left_on=['mrn'], right_on=['MRN'])
+    else:
+        # get cbtn info for this specific subject
+        sub_df = pd.merge(sub_info, cbtn_df_sub, how='left', left_on=['mrn'], right_on=['MRN'])
     # if any are still missing C-ID, try FirstName/LastName
     sub_df, missing_c_ids = split_missing_values(sub_df,'CBTN Subject ID')
     if not missing_c_ids.empty:
