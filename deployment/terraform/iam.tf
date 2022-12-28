@@ -260,3 +260,28 @@ resource "aws_iam_role_policy" "step_functions_service_role_policy" {
   role        = aws_iam_role.step_functions_service_role.name
   policy      = data.aws_iam_policy_document.step_functions_service_role_policy.json
 }
+
+
+data "aws_iam_policy_document" "cw_eventbus_assume_role" {
+
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "eventbus" {
+  name_prefix        = "EventBus${local.short}Role-"
+
+  assume_role_policy    = data.aws_iam_policy_document.cw_eventbus_assume_role.json
+
+  tags = {
+     Project = var.project
+     Environment = var.environment
+  }
+}
