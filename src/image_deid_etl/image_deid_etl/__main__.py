@@ -118,6 +118,7 @@ def import_uuids(args) -> int:
 
 
 def check(args) -> int:
+    from image_deid_etl.orthanc import get_orthanc_url, get_uuids, download_unpack_copy
     new_uuids, _, _ = get_uuids(get_orthanc_url(), get_all_processed_uuids(), "all")
 
     # There is no guarantee that these UUIDs will be in any particular order,
@@ -238,7 +239,8 @@ def run(args) -> int:
             sys.exit(1)
         else:
             logger.info('Updating target Flywheel project with version info...')
-            change_fw_proj_version(args, 'v2')
+            if args.program == 'cbtn':
+                change_fw_proj_version(args, 'v2')
 
             logger.info('Uploading "safe" files to Flywheel...')
             upload2fw(args)
@@ -252,7 +254,7 @@ def run(args) -> int:
             if os.path.exists(local_path + "NIfTIs_short_json/"):
                 logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
     
-    if orthanc_flag:
+    if orthanc_flag & (args.program=='cbtn'):
         try:
             logger.info("Updating list of UUIDs...")
             import_uuids_from_set(args.uuid)
@@ -407,7 +409,7 @@ def main() -> int:
         "--program",
         nargs="?",
         default="cbtn",
-        choices=["cbtn", "corsica"],
+        choices=["cbtn", "corsica","arastoo"],
         help="program namespace",
     )
     parser_run.add_argument(
