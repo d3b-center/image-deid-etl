@@ -40,6 +40,9 @@ def subject_info(local_path, program, file_dir, orthanc_flag, sub_id_mapping, va
     elif program == 'corsica':
         corsica_fn='corsica_identified_mapping.csv'
         sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_corsica(corsica_fn,sub_info,local_path,program,'Patient_Name') # MRN or Patient_Name
+    elif program=='arastoo':
+        sub_df = pandas.read_csv(sub_id_mapping)
+        sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(sub_df, sub_info, local_path, orthanc_flag, []) # MRN or Patient_Name
     # account for missing subject labels
     if not sub_missing_c_ids.empty:
         output_fn = file_dir+'missing_subject_ids_'+todays_date+'.csv'
@@ -66,6 +69,10 @@ def subject_info(local_path, program, file_dir, orthanc_flag, sub_id_mapping, va
             sub_missing_proj.to_csv(output_fn,index=False)
     elif program == 'corsica':
         fw_dest_proj = 'Corsica'
+        sub_mapping['fw_proj'] = [fw_dest_proj] * len(sub_mapping)
+        sub_missing_proj=[]
+    elif program == 'arastoo':
+        fw_dest_proj = 'Arastoo_IRB_protocol'
         sub_mapping['fw_proj'] = [fw_dest_proj] * len(sub_mapping)
         sub_missing_proj=[]
     if validate:
