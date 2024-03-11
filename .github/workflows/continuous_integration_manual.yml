@@ -42,7 +42,7 @@ jobs:
         if: github.ref == 'refs/heads/develop'
 
       - name: Notify Rollbar
-        uses: rollbar/github-deploy-action@2.1.1
+        uses: rollbar/github-deploy-action@2.1.2
         with:
           environment: 'staging'
           version: ${{ github.sha }}
