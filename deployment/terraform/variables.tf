@@ -95,7 +95,7 @@ variable "rds_allocated_storage" {
 
 variable "rds_engine_version" {
   type    = string
-  default = "14.2"
+  default = "14.11"
 }
 
 variable "rds_parameter_group_family" {
