@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Develoment Environment
+.idea
+.venv
+.env
+
+# Python
+__pycache__
+*.egg-info
+
+# Application State
+cbtn
+*.csv
+*.db
+

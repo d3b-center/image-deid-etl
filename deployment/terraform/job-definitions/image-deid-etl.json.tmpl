@@ -1,0 +1,72 @@
+{
+    "image": "${image_url}",
+    "vcpus": ${image_deid_etl_vcpus},
+    "memory": ${image_deid_etl_memory},
+    "command": [
+       "image-deid-etl",
+       "run",
+       "Ref::study-uuid"
+    ],
+    "environment": [
+        {
+          "name": "DATABASE_URL",
+          "value": "${database_url}"
+        },
+        {
+            "name": "FLYWHEEL_API_KEY",
+            "value": "${flywheel_api_key}"
+        },
+        {
+            "name": "FLYWHEEL_GROUP",
+            "value": "${flywheel_group}"
+        },
+        {
+            "name": "ORTHANC_CREDENTIALS",
+            "value": "${orthanc_credentials}"
+        },
+        {
+            "name": "ORTHANC_HOST",
+            "value": "${orthanc_host}"
+        },
+        {
+            "name": "ORTHANC_PORT",
+            "value": "${orthanc_port}"
+        },
+        {
+            "name": "ROLLBAR_POST_SERVER_ITEM_ACCESS_TOKEN",
+            "value": "${rollbar_post_server_item_access_token}"
+        },
+        {
+            "name": "PHI_DATA_BUCKET_NAME",
+            "value": "${phi_data_bucket_name}"
+        },
+        {
+            "name": "SUBJECT_ID_MAPPING_PATH",
+            "value": "${subject_id_mapping_path}"
+        },
+        {
+            "name": "IMAGE_DEID_ETL_ENV",
+            "value": "${environment}"
+        },
+        {
+            "name": "IMAGE_DEID_ETL_LOG_LEVEL",
+            "value": "${image_deid_etl_log_level}"
+        }
+    ],
+    "volumes": [
+        {
+            "host": {
+                "sourcePath": "/media/ephemeral0"
+            },
+            "name": "ephemeral0"
+        }
+    ],
+    "mountPoints": [
+        {
+            "containerPath": "/tmp",
+            "readOnly": false,
+            "sourceVolume": "ephemeral0"
+        }
+    ],
+    "privileged": false
+}

@@ -1,0 +1,33 @@
+{
+    "StartAt": "Fan out batch jobs",
+    "TimeoutSeconds": 3600,
+    "States": {
+        "Fan out batch jobs": {
+            "Type": "Map",
+            "End": true,
+            "ItemsPath": "$.study-uuids",
+            "Parameters": {
+                "FormattedJobName.$": "States.Format('ProcessStudy_{}', $$.Map.Item.Value)",
+                "StudyUuid.$": "$$.Map.Item.Value"
+            },
+            "Iterator": {
+                "StartAt": "Submit Batch Job",
+                "States": {
+                    "Submit Batch Job": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::batch:submitJob.sync",
+                        "Parameters": {
+                            "JobName.$": "$.FormattedJobName",
+                            "JobQueue": "${batch_job_queue_arn}",
+                            "JobDefinition": "${batch_job_definition_arn}",
+                            "Parameters": {
+                                "study-uuid.$": "$.StudyUuid"
+                            }
+                        },
+                        "End": true
+                    }
+                }
+            }
+        }
+    }
+}

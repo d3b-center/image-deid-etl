@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Ensure container images are current
+docker-compose build
+
+# Make sure the database is up-to-date.
+docker-compose \
+  run --rm image-deid-etl \
+  image-deid-etl initdb

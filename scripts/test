@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Look for (in no particular order) and process two studies from Orthanc.
+docker-compose \
+  run --rm image-deid-etl bash -c \
+  "image-deid-etl check --limit 2 --raw | xargs image-deid-etl run"
+
+# Process a specific Orthanc study. This is the study that tripped
+# rordenlab/dcm2niix#566.
+docker-compose \
+  run --rm image-deid-etl \
+  image-deid-etl run d1b90c78-d9b579f2-a4664679-7ede472b-978d73a2

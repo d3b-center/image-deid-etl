@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+  workflow_dispatch:
+
+# https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+permissions:
+    contents: read
+    id-token: write
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Execute cibuild
+        run: ./scripts/cibuild
+
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+        if: github.ref == 'refs/heads/develop'
+
+      - name: Execute cipublish
+        run: ./scripts/cipublish
+        if: github.ref == 'refs/heads/develop'
+
+      - name: Execute infra
+        run: |
+          docker-compose -f docker-compose.ci.yml run --rm terraform -c "
+            # Unset this to avoid a ProfileNotFound exception from the AWS CLI.
+            unset AWS_PROFILE
+            ./scripts/infra plan && ./scripts/infra apply
+          "
+        if: github.ref == 'refs/heads/develop'
+
+      - name: Notify Rollbar
+        uses: rollbar/github-deploy-action@2.1.2
+        with:
+          environment: 'staging'
+          version: ${{ github.sha }}
+        env:
+          ROLLBAR_ACCESS_TOKEN: ${{ secrets.ROLLBAR_ACCESS_TOKEN }}
+          ROLLBAR_USERNAME: ${{ github.actor }}
+        if: github.ref == 'refs/heads/develop'

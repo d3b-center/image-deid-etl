@@ -1,0 +1,21 @@
+services:
+  image-deid-etl:
+    image: image-deid-etl:${GIT_COMMIT:-latest}
+
+  terraform:
+    build: ./deployment
+    volumes:
+      - ./:/usr/local/src
+      - $HOME/.aws:/root/.aws
+    environment:
+      - AWS_PROFILE=${AWS_PROFILE:-chopd3bprod}
+      - AWS_DEFAULT_REGION
+      - AWS_REGION
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - GIT_COMMIT
+      - IMAGE_DEID_ETL_DEBUG=1
+      - IMAGE_DEID_ETL_SETTINGS_BUCKET=${IMAGE_DEID_ETL_SETTINGS_BUCKET:-image-deid-etl-staging-config-us-east-1}
+    working_dir: /usr/local/src
+    entrypoint: bash
