@@ -1,6 +1,7 @@
 import importlib.resources as pkg_resources
 import json
 import os
+import sys
 import shutil
 from datetime import datetime
 from glob import glob
@@ -277,7 +278,7 @@ def split_missing_values(input_df,col_name):
     out_df = input_df.dropna().reset_index(drop=True) # rows w/o missing values
     return out_df,missing_df
 
-def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
+def get_subject_mapping_cbtn(logger, cbtn_df,sub_info,data_dir):
     from image_deid_etl.orthanc import get_orthanc_url,get_patient_metadata,get_patient_uuid_from_mrn
     orthanc_url = get_orthanc_url()
     # map MRN to C-ID
@@ -309,7 +310,11 @@ def get_subject_mapping_cbtn(cbtn_df,sub_info,data_dir):
                 dob = []
                 patient_mrn = mrn_append_zeros([str(row['MRN'])])[0]
                 patient_uuid = get_patient_uuid_from_mrn(orthanc_url, patient_mrn)
-                patient_metadata = get_patient_metadata(orthanc_url, patient_uuid[0])
+                try:
+                    patient_metadata = get_patient_metadata(orthanc_url, patient_uuid[0])
+                except ValueError as error:
+                    logger.error(f"Unable to find patient metadata in Orthanc based on patient_uuid: {patient_uuid}", error)
+                    sys.exit(1)
                 if 'PatientBirthDate' in patient_metadata['MainDicomTags'].keys():
                     dob = patient_metadata['MainDicomTags']['PatientBirthDate']
                 else:

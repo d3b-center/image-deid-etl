@@ -33,7 +33,7 @@ def subject_info(local_path, program, file_dir, validate=0):
             logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
             sys.exit(1)
         try:
-            sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(cbtn_all_df,sub_info,local_path)
+            sub_mapping,sub_missing_c_ids,sub_missing_ses = get_subject_mapping_cbtn(logger, cbtn_all_df,sub_info,local_path)
         except ValueError as error:
             logger.error("Error in getting CBTN subject mapping: %r", error)
             sys.exit(1)
