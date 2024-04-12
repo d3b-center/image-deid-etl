@@ -1,5 +1,5 @@
 # ========= config AWS CLI ======================
-FROM debian:bullseye-slim AS awscli2-builder
+FROM --platform=linux/amd64 debian:bullseye-slim AS awscli2-builder
 
 RUN set -ex \
     && apt-get update && apt-get install -y ca-certificates curl unzip --no-install-recommends \
@@ -12,7 +12,7 @@ RUN set -ex \
     && ./aws/install --bin-dir /aws-cli-bin/
 
 #  ========= config dcm2niix =====================
-FROM debian:bullseye-slim AS dcm2niix-builder
+FROM --platform=linux/amd64 debian:bullseye-slim AS dcm2niix-builder
 
 # Specify version of dcm2niix release
 ENV DCM2NIIX_VERSION="bb3a6c35d2bbac6ed95acb2cd0df65f35e79b5fb"
@@ -30,7 +30,7 @@ RUN set -ex \
     && cmake -DBATCH_VERSION=OFF -DUSE_OPENJPEG=ON -DUSE_JPEGLS=true -DZLIB_IMPLEMENTATION=Cloudflare ..  && make
 
 #  ========= config libdcm-tools (GDCM utility package) =====================
-FROM ubuntu:focal AS gdcm-builder
+FROM --platform=linux/amd64 ubuntu:focal AS gdcm-builder
 
 RUN mkdir -p /usr/local/src
 WORKDIR /usr/local/src
@@ -41,7 +41,7 @@ RUN apt-get update && apt-get install -y libgdcm-tools \
 
 # ========= config Flywheel CLI =====================
 
-FROM debian:bullseye-slim AS flywheel-cli-builder
+FROM --platform=linux/amd64 debian:bullseye-slim AS flywheel-cli-builder
 
 ENV FLYWHEEL_VERSION=16.4.0
 
@@ -55,7 +55,7 @@ RUN set -ex \
 
 # ========= config Python packages =====================
 
-FROM python:3.9-slim-bullseye
+FROM --platform=linux/amd64 python:3.9-slim-bullseye
 
 RUN mkdir -p /usr/local/src
 WORKDIR /usr/local/src
