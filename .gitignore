@@ -15,3 +15,4 @@ cbtn
 *.csv
 *.db
 
+terraform.tfvars
