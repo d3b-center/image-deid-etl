@@ -57,6 +57,7 @@
                 "Malignant peripheral nerve sheath tumor (MPNST)":"MPNST",
                 "Metastatic secondary tumors; Other":"Metastatic_secondary",
                 "Sarcoma":"Sarcoma",
+                "Other; Sarcoma":"Sarcoma",
                 "Ganglioglioma; Low-grade glioma/astrocytoma (WHO grade I/II)":"LGG",
                 "Non-germinomatous germ cell tumor; Teratoma":"Multiple_diagnoses",
                 "Dysembryoplastic neuroepithelial tumor (DNET); Dysplasia/Gliosis":"DNET",
