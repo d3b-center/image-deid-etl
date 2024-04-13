@@ -90,5 +90,7 @@
                 "Dysplasia/Gliosis; Glial-neuronal tumor NOS":"Dysplasia_Gliosis_NOS",
                 "Brainstem glioma- Tectal":"Brainstem_glioma_tectal",
                 "Neurofibroma/Plexiform; Other":"Neurofibroma",
-                "Ependymoma; Meningioma; Schwannoma":"Multiple_diagnoses"
+                "Ependymoma; Meningioma; Schwannoma":"Multiple_diagnoses",
+                "Dysplasia/Gliosis; Medulloblastoma":"Medullo",
+                "Low-grade glioma/astrocytoma (WHO grade I/II); Neurofibroma/Plexiform":"LGG"
 }
