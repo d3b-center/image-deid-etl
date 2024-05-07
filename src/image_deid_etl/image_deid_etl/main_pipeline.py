@@ -1,6 +1,8 @@
 import logging
 
-import pandas
+import pandas as pd
+from datetime import datetime
+import os
 
 from image_deid_etl.exceptions import ImproperlyConfigured
 from image_deid_etl.external_data_handling import *
@@ -28,7 +30,7 @@ def subject_info(local_path, program, file_dir, validate=0):
     if program == 'cbtn':
         # get CBTN Subject IDs
         try:
-            cbtn_all_df = pandas.read_csv(SUBJECT_ID_MAPPING_PATH)
+            cbtn_all_df = pd.read_csv(SUBJECT_ID_MAPPING_PATH)
         except IndexError as error:
             logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
             sys.exit(1)
