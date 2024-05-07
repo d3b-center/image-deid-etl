@@ -423,7 +423,7 @@ def get_fw_proj_cbtn(cbtn_df,sub_mapping):
 #   based on the CBTN-all spreadsheet. Uses age-at-imaging to find the closest event
 #   in time in CBTN-all & then uses the Diagnosis category to derive a Flywheel project label
 #   (based on a mapping dictionary).
-    cbtn_df = cbtn_df[['CBTN Subject ID','Age at Diagnosis','Diagnosis']]
+    cbtn_df = cbtn_df[['CBTN Subject ID','Age at Event','Diagnoses']]
     proj_mapping = json.load(pkg_resources.open_text(__package__, 'diagnosis_mapping.json'))
     sub_list = sub_mapping['C_ID'].values.tolist()
     session_list = sub_mapping['session_label'].values.tolist()
@@ -437,22 +437,22 @@ def get_fw_proj_cbtn(cbtn_df,sub_mapping):
         if sub_rows.empty:
             fw_projects.append(missing_tag)
         else:
-            sub_rows = sub_rows[sub_rows['Diagnosis']!='Not Reported'] # remove 'not reported' rows
-            sub_rows = sub_rows[sub_rows['Diagnosis']!='Other'] # remove 'other' rows
-            if (not sub_rows.empty) and (not sub_rows[sub_rows['Diagnosis']=="Supratentorial or Spinal Cord PNET"].empty): # if there is a PNET diagnosis
-                if len(sub_rows['Diagnosis'].unique()) > 1: # if there are additional diagnoses available
-                    sub_rows = sub_rows[sub_rows['Diagnosis']!='Supratentorial or Spinal Cord PNET']     # remove "PNET" rows                
+            sub_rows = sub_rows[sub_rows['Diagnoses']!='Not Reported'] # remove 'not reported' rows
+            sub_rows = sub_rows[sub_rows['Diagnoses']!='Other'] # remove 'other' rows
+            if (not sub_rows.empty) and (not sub_rows[sub_rows['Diagnoses']=="Supratentorial or Spinal Cord PNET"].empty): # if there is a PNET diagnosis
+                if len(sub_rows['Diagnoses'].unique()) > 1: # if there are additional diagnoses available
+                    sub_rows = sub_rows[sub_rows['Diagnoses']!='Supratentorial or Spinal Cord PNET']     # remove "PNET" rows                
             if sub_rows.empty:
                 diagnosis_to_use='Not Reported'
                 fw_projects.append(proj_mapping[diagnosis_to_use]) # use hard-coded dictionary to map to fw-proj label
-            elif (len(sub_rows['Diagnosis'].unique()) == 1):
-                diagnosis_to_use=sub_rows['Diagnosis'].unique().tolist()[0]
+            elif (len(sub_rows['Diagnoses'].unique()) == 1):
+                diagnosis_to_use=sub_rows['Diagnoses'].unique().tolist()[0]
                 fw_projects.append(proj_mapping[diagnosis_to_use]) # use hard-coded dictionary to map to fw-proj label                
             else:
                 # use the age-in-days at imaging (from the session labels) to find the row with the closest age-at-diagnosis value
-                closest_diagnosis = closest(sub_rows['Age at Diagnosis'].values.astype(int).tolist(), int(age_at_imaging[ind])) # closest age row
+                closest_diagnosis = closest(sub_rows['Age at Event'].values.astype(int).tolist(), int(age_at_imaging[ind])) # closest age row
                 # grab the diagnosis label for that row
-                diagnosis_to_use = sub_rows[sub_rows['Age at Diagnosis']==str(closest_diagnosis)]['Diagnosis'].tolist()[0]
+                diagnosis_to_use = sub_rows[sub_rows['Age at Event']==str(closest_diagnosis)]['Diagnoses'].tolist()[0]
                 # map to the FW-project labels
                 fw_projects.append(proj_mapping[diagnosis_to_use]) # use hard-coded dictionary to map to fw-proj label
         ind+=1
