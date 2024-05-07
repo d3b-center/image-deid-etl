@@ -423,7 +423,7 @@ def get_fw_proj_cbtn(cbtn_df,sub_mapping):
 #   based on the CBTN-all spreadsheet. Uses age-at-imaging to find the closest event
 #   in time in CBTN-all & then uses the Diagnosis category to derive a Flywheel project label
 #   (based on a mapping dictionary).
-    cbtn_df = cbtn_df[['CBTN Subject ID','Age at Event','Diagnoses']]
+    cbtn_df = cbtn_df[['CBTN Subject ID','Age at Event Days','Diagnoses']]
     proj_mapping = json.load(pkg_resources.open_text(__package__, 'diagnosis_mapping.json'))
     sub_list = sub_mapping['C_ID'].values.tolist()
     session_list = sub_mapping['session_label'].values.tolist()
