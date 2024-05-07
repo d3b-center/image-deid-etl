@@ -1,6 +1,8 @@
 import logging
 
 import pandas as pd
+from datetime import datetime
+import os
 
 from image_deid_etl.exceptions import ImproperlyConfigured
 from image_deid_etl.external_data_handling import *
