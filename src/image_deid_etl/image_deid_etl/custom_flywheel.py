@@ -74,9 +74,12 @@ def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, dat
             nii_cntr=[]
             base = os.path.basename(file) # get JSON file name w/o file ending
             nii_fn = os.path.splitext(base)[0] + '.nii.gz'
-            logger.debug('Adding JSON metadata to '+fw_path_to_acq+'/'+nii_fn)
-            nii_cntr = acq.get_file(nii_fn)
-            nii_cntr.update_info(metadata)
+            logger.info('Adding JSON metadata to '+fw_path_to_acq+'/'+nii_fn)
+            try:
+                nii_cntr = acq.get_file(nii_fn)
+                nii_cntr.update_info(metadata)
+            except:
+                continue
             # add in 'CT' modality classifications b/c there's an issue with Flywheel not doing it
             try:
                 if metadata['Modality']=='CT':

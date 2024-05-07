@@ -16,3 +16,4 @@ cbtn
 *.db
 
 terraform.tfvars
+debug.py
