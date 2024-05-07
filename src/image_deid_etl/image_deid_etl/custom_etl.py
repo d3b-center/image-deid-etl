@@ -450,9 +450,9 @@ def get_fw_proj_cbtn(cbtn_df,sub_mapping):
                 fw_projects.append(proj_mapping[diagnosis_to_use]) # use hard-coded dictionary to map to fw-proj label                
             else:
                 # use the age-in-days at imaging (from the session labels) to find the row with the closest age-at-diagnosis value
-                closest_diagnosis = closest(sub_rows['Age at Event'].values.astype(int).tolist(), int(age_at_imaging[ind])) # closest age row
+                closest_diagnosis = closest(sub_rows['Age at Event Days'].values.astype(int).tolist(), int(age_at_imaging[ind])) # closest age row
                 # grab the diagnosis label for that row
-                diagnosis_to_use = sub_rows[sub_rows['Age at Event']==str(closest_diagnosis)]['Diagnoses'].tolist()[0]
+                diagnosis_to_use = sub_rows[sub_rows['Age at Event Days']==str(closest_diagnosis)]['Diagnoses'].tolist()[0]
                 # map to the FW-project labels
                 fw_projects.append(proj_mapping[diagnosis_to_use]) # use hard-coded dictionary to map to fw-proj label
         ind+=1
