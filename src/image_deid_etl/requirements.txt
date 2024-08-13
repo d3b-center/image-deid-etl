@@ -1,5 +1,5 @@
 boto3==1.21.34
-flywheel-sdk==15.8.0
+flywheel-sdk==18.0.0
 nibabel==3.2.2
 numpy==1.22.3
 opencv-python-headless==4.5.5.64
