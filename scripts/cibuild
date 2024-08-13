@@ -24,7 +24,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         usage
     else
         # Build tagged container images
-        GIT_COMMIT="${GIT_COMMIT}" docker-compose \
+        GIT_COMMIT="${GIT_COMMIT}" docker compose \
             -f docker-compose.yml \
             -f docker-compose.ci.yml \
             build image-deid-etl
