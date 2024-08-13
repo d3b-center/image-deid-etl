@@ -34,7 +34,7 @@ jobs:
 
       - name: Execute infra
         run: |
-          docker-compose -f docker-compose.ci.yml run --rm terraform -c "
+          docker compose -f docker-compose.ci.yml run --rm terraform -c "
             # Unset this to avoid a ProfileNotFound exception from the AWS CLI.
             unset AWS_PROFILE
             ./scripts/infra plan && ./scripts/infra apply
