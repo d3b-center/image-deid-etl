@@ -44,7 +44,8 @@ RUN apt-get update && apt-get install -y libgdcm-tools \
 FROM --platform=linux/amd64 debian:bullseye-slim AS flywheel-cli-builder
 
 #ENV FLYWHEEL_VERSION=16.4.0
-ENV FLYWHEEL_VERSION=18.1.2
+# ENV FLYWHEEL_VERSION=18.1.2
+ENV FLYWHEEL_VERSION=19.0.4
 
 RUN mkdir -p /usr/local/src
 WORKDIR /usr/local/src
