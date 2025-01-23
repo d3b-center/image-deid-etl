@@ -31,6 +31,7 @@ def subject_info(local_path, program, file_dir, validate=0):
         # get CBTN Subject IDs
         try:
             cbtn_all_df = pd.read_csv(SUBJECT_ID_MAPPING_PATH)
+            logger.info(f'Using CBTN-all file: {SUBJECT_ID_MAPPING_PATH}')
         except IndexError as error:
             logger.error("Missing CBTN subject ID .csv file from internal EIG database: %r", error)
             sys.exit(1)
