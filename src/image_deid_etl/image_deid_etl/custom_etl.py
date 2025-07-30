@@ -546,7 +546,10 @@ def structure_nifti_files(data_dir,sub_mapping,output_dir,program):
                         os.makedirs(session_dir)
                 else:
                     session_dir=session_dir_in
-                acq_label = str(sidecar['SeriesDescription'])
+                try: # catches when have no SeriesDescription available
+                    acq_label = str(sidecar['SeriesDescription'])
+                except:
+                    acq_label = ''
                 # avoid moving files for known PHI-containing acqusitions based on hard-coded strings
                 if ('Study_acquired_outside_hospital' not in acq_label) and \
                     (not (any(x in acq_label.lower() for x in ['screensave','screen save','screen_save']))) and \
@@ -560,7 +563,10 @@ def structure_nifti_files(data_dir,sub_mapping,output_dir,program):
                         series_num = '0'+series_num
                     # replace any single quotation marks with underscore in acquisition labels (a rare case but has been found)
                     acq_label = acq_label.replace("'",'_')
-                    acq_target_dir = session_dir+'/'+series_num+' - '+acq_label
+                    if acq_label=='':
+                        acq_target_dir = session_dir+'/'+series_num
+                    else:
+                        acq_target_dir = session_dir+'/'+series_num+' - '+acq_label
                     # if it doesn't already exist, create it
                     if not os.path.exists(acq_target_dir):
                         os.makedirs(acq_target_dir)
