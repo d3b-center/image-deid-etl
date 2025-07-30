@@ -234,20 +234,22 @@ def run(args) -> int:
             )
             sys.exit(1)
         else:
-            logger.info('Updating target Flywheel project with version info...')
-            change_fw_proj_version(args, 'v2')
+            source_path = f"{args.program}/{args.site}/NIfTIs/"
+            if os.path.exists(source_path):
+                logger.info('Updating target Flywheel project with version info...')
+                change_fw_proj_version(args, 'v2')
 
-            logger.info('Uploading "safe" files to Flywheel...')
-            upload2fw(args)
+                logger.info('Uploading "safe" files to Flywheel...')
+                upload2fw(args)
 
-            logger.info("Injecting sidecar metadata...")
-            add_fw_metadata(args)
+                logger.info("Injecting sidecar metadata...")
+                add_fw_metadata(args)
 
-            logger.info("DONE PROCESSING STUDIES")
-            if os.path.exists(local_path + "NIfTIs_to_check/"):
-                logger.info("There are files to check in: " + local_path + "NIfTIs_to_check/")
-            if os.path.exists(local_path + "NIfTIs_short_json/"):
-                logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
+                logger.info("DONE PROCESSING STUDIES")
+                if os.path.exists(local_path + "NIfTIs_to_check/"):
+                    logger.info("There are files to check in: " + local_path + "NIfTIs_to_check/")
+                if os.path.exists(local_path + "NIfTIs_short_json/"):
+                    logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
 
     try:
         logger.info("Updating list of UUIDs...")
