@@ -156,7 +156,8 @@ def validate(args) -> int:
 
 def run(args) -> int:
     if args.batch:
-        batch = boto3.client("batch")
+        session = boto3.Session(profile_name='chopd3bprd')
+        batch = session.client("batch")
 
         aws_job_queue = os.getenv("AWS_JOB_QUEUE")
         if aws_job_queue is None:
