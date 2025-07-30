@@ -46,11 +46,14 @@ def inject_sidecar_metadata(fw_client: flywheel.Client, flywheel_group: str, dat
     json_files = glob(data_dir+'*/*/*/*/*.json')
 
     # use directory labels to get target Flywheel path
-    fw_proj = glob(data_dir+'*')[0].split('/')[-1]
-    subject = glob(data_dir+'*/*')[0].split('/')[-1]
-    session = glob(data_dir+'*/*/*')[0].split('/')[-1]
-    flywheel_path = f"{flywheel_group}/{fw_proj}/{subject}/{session}"
-
+    try: # catches when have empty data_dir or sub-dir's
+        fw_proj = glob(data_dir+'*')[0].split('/')[-1]
+        subject = glob(data_dir+'*/*')[0].split('/')[-1]
+        session = glob(data_dir+'*/*/*')[0].split('/')[-1]
+        flywheel_path = f"{flywheel_group}/{fw_proj}/{subject}/{session}"
+    except:
+        return
+    
     # get labels of acquisitions for this session on Flywheel
     session_cntr = fw_client.lookup(flywheel_path)
     fw_acq_labels = []
