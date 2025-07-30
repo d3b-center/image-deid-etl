@@ -602,8 +602,11 @@ def structure_nifti_files(data_dir,sub_mapping,output_dir,program):
                         shutil.move(new_fn, acq_target_dir)
                 else:
                     shutil.rmtree(acq) # deletes directories & all files
-                if not os.listdir(acq_target_dir): # if no contents
-                    os.rmdir(acq_target_dir) # only deletes empty directories
+                try: # catches when `acq_target_dir` doesn't exist
+                    if not os.listdir(acq_target_dir): # if no contents
+                        os.rmdir(acq_target_dir) # only deletes empty directories
+                except:
+                    continue
                 if not os.listdir(session_dir):
                     os.rmdir(session_dir)
                 sub_dir = '/'.join(session_dir.split('/')[0:5])
