@@ -3,6 +3,7 @@
                 "Medulloblastoma":"Medullo",
                 "High-grade glioma/astrocytoma (WHO grade III/IV)":"HGG",
                 "Non-germinomatous germ cell tumor":"NGGCT",
+                "Not Applicable":"Other",
                 "Not Reported":"Other",
                 "Dysplasia/Gliosis":"Dysplasia_Gliosis",
                 "Chordoma":"Chordoma",
