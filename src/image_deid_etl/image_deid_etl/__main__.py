@@ -35,8 +35,6 @@ if FLYWHEEL_API_KEY is None:
     raise ImproperlyConfigured("You must supply a FLYWHEEL_API_KEY.")
 
 FLYWHEEL_ON_PREM_API_KEY = os.getenv("FLYWHEEL_ON_PREM_API_KEY")
-# if FLYWHEEL_ON_PREM_API_KEY is None:
-    # raise ImproperlyConfigured("You must supply a FLYWHEEL_ON_PREM_API_KEY.")
 
 FLYWHEEL_GROUP = os.getenv("FLYWHEEL_GROUP")
 if FLYWHEEL_GROUP is None:
@@ -336,6 +334,9 @@ def upload2fw(args, nifti_flag) -> int:
                     f"fw ingest folder --no-audit-log --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}"
                 )
         else:
+            if FLYWHEEL_ON_PREM_API_KEY is None:
+                raise ImproperlyConfigured("You must supply a FLYWHEEL_ON_PREM_API_KEY.")
+
             # Write our Flywheel credentials to JSON in the config directory.
             with open(f"{flywheel_user_home}/.config/flywheel/user.json", "w") as f:
                 json.dump({"key": FLYWHEEL_ON_PREM_API_KEY, "root": False}, f, ensure_ascii=False)
