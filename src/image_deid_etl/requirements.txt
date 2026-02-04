@@ -1,4 +1,4 @@
-boto3==1.39.16
+boto3==1.42.42
 flywheel-sdk==18.0.0
 nibabel==3.2.2
 numpy==1.22.3
