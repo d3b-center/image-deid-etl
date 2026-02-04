@@ -116,6 +116,7 @@ resource "aws_batch_job_definition" "default" {
     database_url = "postgresql://${var.rds_database_username}:${var.rds_database_password}@${module.database.hostname}:${module.database.port}/${var.rds_database_name}"
 
     flywheel_api_key    = var.flywheel_api_key
+    flywheel_on_prem_api_key    = var.flywheel_on_prem_api_key
     flywheel_group      = var.flywheel_group
     orthanc_credentials = var.orthanc_credentials
     orthanc_host        = var.orthanc_host

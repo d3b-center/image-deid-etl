@@ -271,6 +271,11 @@ variable "flywheel_api_key" {
   sensitive = true
 }
 
+variable "flywheel_on_prem_api_key" {
+  type      = string
+  sensitive = true
+}
+
 variable "flywheel_group" {
   type      = string
   sensitive = true
