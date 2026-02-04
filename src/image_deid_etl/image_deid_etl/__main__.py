@@ -34,6 +34,10 @@ FLYWHEEL_API_KEY = os.getenv("FLYWHEEL_API_KEY")
 if FLYWHEEL_API_KEY is None:
     raise ImproperlyConfigured("You must supply a FLYWHEEL_API_KEY.")
 
+FLYWHEEL_ON_PREM_API_KEY = os.getenv("FLYWHEEL_ON_PREM_API_KEY")
+# if FLYWHEEL_ON_PREM_API_KEY is None:
+    # raise ImproperlyConfigured("You must supply a FLYWHEEL_ON_PREM_API_KEY.")
+
 FLYWHEEL_GROUP = os.getenv("FLYWHEEL_GROUP")
 if FLYWHEEL_GROUP is None:
     raise ImproperlyConfigured(
@@ -154,7 +158,7 @@ def validate(args) -> int:
     return 0
 
 
-def run(args) -> int:
+def run(args) -> int:        
     if args.batch:
         session = boto3.Session(profile_name='chopd3bprd')
         batch = session.client("batch")
@@ -170,11 +174,16 @@ def run(args) -> int:
             )
 
         for uuid in args.uuid:
+            if args.send_to_hipaa_flywheel:
+                this_command = ["image-deid-etl", "run", "--send-to-hipaa-flywheel", uuid]
+            else:
+                this_command = ["image-deid-etl", "run", uuid]
+
             response = batch.submit_job(
                 jobName=f"ProcessStudy_{uuid}",
                 jobQueue=aws_job_queue,
                 jobDefinition=aws_job_definition,
-                containerOverrides={"command": ["image-deid-etl", "run", uuid]},
+                containerOverrides={"command": this_command},
             )
 
             region = batch.meta.region_name
@@ -219,28 +228,39 @@ def run(args) -> int:
     if len(glob(local_path + "DICOMs/*/*/*")) == 0: # checks if there are any acquisition dir's
         logger.info(f"'No DICOMs found. Exiting.") # if there are no valid DICOMs to proces, then exit (still add the uuid to the RDS)
     else:
-        # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
-        logger.info("Commencing de-identification process...")
-        missing_ses_flag, missing_subj_id_flag = run_deid(local_path, args.program)
-
-        if missing_ses_flag:
-            raise AttributeError(
-                "Unable to generate session label."
+        if args.send_to_hipaa_flywheel:
+            logger.info("Uploading identified DICOMs to HIPAA-compliant Flywheel instance.")
+            retcode = upload2fw(args, nifti_flag=0)
+            if retcode != 0:
+                raise RuntimeError(
+                    f"Error uploading NIfTIs to Flywheel (exit code {retcode})."
                 )
-            sys.exit(1)
-        if missing_subj_id_flag:
-            raise LookupError(
-                "Unable to find subject ID."
-            )
-            sys.exit(1)
+
         else:
-            source_path = f"{args.program}/{args.site}/NIfTIs/"
-            if os.path.exists(source_path):
+            # Run conversion, de-id, quarantine suspicious files, and restructure output for upload.
+            logger.info("Commencing de-identification process...")
+            missing_ses_flag, missing_subj_id_flag = run_deid(local_path, args.program)
+
+            if missing_ses_flag:
+                raise AttributeError(
+                    "Unable to generate session label."
+                    )
+                sys.exit(1)
+            if missing_subj_id_flag:
+                raise LookupError(
+                    "Unable to find subject ID."
+                )
+                sys.exit(1)
+            else:
                 logger.info('Updating target Flywheel project with version info...')
                 change_fw_proj_version(args, 'v2')
 
                 logger.info('Uploading "safe" files to Flywheel...')
-                upload2fw(args)
+                retcode = upload2fw(args, nifti_flag=1)
+                if retcode != 0:
+                    raise RuntimeError(
+                        f"Error uploading NIfTIs to Flywheel (exit code {retcode})."
+                    )
 
                 logger.info("Injecting sidecar metadata...")
                 add_fw_metadata(args)
@@ -285,7 +305,7 @@ def change_fw_proj_version(args, ver_label) -> int:
     fw_client = flywheel.Client(api_key=FLYWHEEL_API_KEY)
     confirm_proj_exists(fw_client, FLYWHEEL_GROUP, source_path)
 
-def upload2fw(args) -> int:
+def upload2fw(args, nifti_flag) -> int:
     # This is a hack so that the Flywheel CLI can consume credentials from the
     # environment.
     with tempfile.TemporaryDirectory() as flywheel_user_home:
@@ -294,23 +314,38 @@ def upload2fw(args) -> int:
         os.putenv("FLYWHEEL_USER_HOME", flywheel_user_home)
         # Create the fake config directory.
         os.makedirs(f"{flywheel_user_home}/.config/flywheel/", exist_ok=True)
-        # Write our Flywheel credentials to JSON in the config directory.
-        with open(f"{flywheel_user_home}/.config/flywheel/user.json", "w") as f:
-            json.dump({"key": FLYWHEEL_API_KEY, "root": False}, f, ensure_ascii=False)
 
-        source_path = f"{args.program}/{args.site}/NIfTIs/"
+        ## Upload NIfTI's to (cloud) Flywheel instance
+        if nifti_flag:
+            # Write our Flywheel credentials to JSON in the config directory.
+            with open(f"{flywheel_user_home}/.config/flywheel/user.json", "w") as f:
+                json.dump({"key": FLYWHEEL_API_KEY, "root": False}, f, ensure_ascii=False)
 
-        if not os.path.exists(source_path):
-            raise FileNotFoundError(
-                f"ERROR AT upload2fw: {source_path} directory does not exist. Is sub_mapping empty?"
-            )
+            source_path = f"{args.program}/{args.site}/NIfTIs/"
 
-        for fw_project in next(os.walk(source_path))[1]:  # for each project dir
-            proj_path = os.path.join(source_path, fw_project)
-            os.system(
-                f"fw ingest folder --no-audit-log --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}"
-            )
-    return 0
+            if not os.path.exists(source_path):
+                raise FileNotFoundError(
+                    f"ERROR AT upload2fw: {source_path} directory does not exist. Is sub_mapping empty?"
+                )
+
+            for fw_project in next(os.walk(source_path))[1]:  # for each project dir
+                proj_path = os.path.join(source_path, fw_project)
+                # return error if fw ingest command fails
+                
+                retcode = os.system(
+                    f"fw ingest folder --no-audit-log --group {FLYWHEEL_GROUP} --project {fw_project} --skip-existing -y --quiet {proj_path}"
+                )
+        else:
+            # Write our Flywheel credentials to JSON in the config directory.
+            with open(f"{flywheel_user_home}/.config/flywheel/user.json", "w") as f:
+                json.dump({"key": FLYWHEEL_ON_PREM_API_KEY, "root": False}, f, ensure_ascii=False)
+
+            source_path = f"{args.program}/{args.site}/DICOMs/"
+            fw_project = 'CHOP_raw_data'
+            retcode = os.system(
+                    f"fw ingest dicom {source_path} {FLYWHEEL_GROUP} {fw_project} --no-audit-log --skip-existing -y --quiet"
+                )
+    return retcode
 
 
 def add_fw_metadata(args) -> int:
@@ -398,6 +433,11 @@ def main() -> int:
         "--batch",
         action="store_true",
         help="skip local processing and submit job(s) to AWS Batch",
+    )
+    parser_run.add_argument(
+        "--send-to-hipaa-flywheel",
+        action="store_true",
+        help="upload identified DICOMs to HIPAA-compliant Flywheel instance",
     )
     parser_run.add_argument(
         "--skip-modalities",
