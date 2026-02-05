@@ -343,8 +343,15 @@ def upload2fw(args, nifti_flag) -> int:
 
             source_path = f"{args.program}/{args.site}/DICOMs/"
             fw_project = 'CHOP_raw_data'
+            # handle missing PatientID
+            if 'Unknown Patient' in glob(source_path+'*'):
+                subject_label = 'Unknown_Patient'
+                subject_string = f' --subject {subject_label}'
+            else:
+                subject_string = ''
+            # run the Flywheel CLI for ingest
             retcode = os.system(
-                    f"fw ingest dicom {source_path} {FLYWHEEL_GROUP} {fw_project} --no-audit-log --skip-existing -y --quiet"
+                    f"fw ingest dicom {source_path} {FLYWHEEL_GROUP} {fw_project} --no-audit-log --skip-existing -y --quiet{subject_string}"
                 )
     return retcode
 
