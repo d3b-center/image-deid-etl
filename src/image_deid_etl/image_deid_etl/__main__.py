@@ -230,8 +230,12 @@ def run(args) -> int:
             logger.info("Uploading identified DICOMs to HIPAA-compliant Flywheel instance.")
             retcode = upload2fw(args, nifti_flag=0)
             if retcode != 0:
+                patient_id = glob(local_path + "DICOMs/*")[0].split('/')[-1]
+                accession_number = glob(local_path + "DICOMs/*/*")[0].split('/')[-1].split(' ')[0]
+                print(f'     Orthanc PatientID: {patient_id}')
+                print(f'     Orthanc AccessionNumber: {accession_number}')
                 raise RuntimeError(
-                    f"Error uploading NIfTIs to Flywheel (exit code {retcode})."
+                    f"Error uploading DICOMs to HIPAA Flywheel (exit code {retcode})."
                 )
 
         else:
@@ -344,7 +348,8 @@ def upload2fw(args, nifti_flag) -> int:
             source_path = f"{args.program}/{args.site}/DICOMs/"
             fw_project = 'CHOP_raw_data'
             # handle missing PatientID
-            if 'Unknown Patient' in glob(source_path+'*'):
+            patient_id = patient_id = glob(f"{source_path}/*")[0].split('/')[-1]
+            if patient_id == 'Unknown Patient':
                 subject_label = 'Unknown_Patient'
                 subject_string = f' --subject {subject_label}'
             else:
