@@ -348,7 +348,7 @@ def upload2fw(args, nifti_flag) -> int:
             source_path = f"{args.program}/{args.site}/DICOMs/"
             fw_project = 'CHOP_raw_data'
             # handle missing PatientID
-            patient_id = patient_id = glob(f"{source_path}/*")[0].split('/')[-1]
+            patient_id = glob(f"{source_path}/*")[0].split('/')[-1]
             if patient_id == 'Unknown Patient':
                 subject_label = 'Unknown_Patient'
                 subject_string = f' --subject {subject_label}'
