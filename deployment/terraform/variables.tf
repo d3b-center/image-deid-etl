@@ -296,6 +296,21 @@ variable "orthanc_port" {
   sensitive = true
 }
 
+variable "ambra_host_url" {
+  type      = string
+  sensitive = true
+}
+
+variable "ambra_username" {
+  type      = string
+  sensitive = true
+}
+
+variable "ambra_password" {
+  type      = string
+  sensitive = true
+}
+
 variable "subject_id_mapping_path" {
   type      = string
   sensitive = true

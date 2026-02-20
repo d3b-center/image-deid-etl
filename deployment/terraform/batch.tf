@@ -121,6 +121,9 @@ resource "aws_batch_job_definition" "default" {
     orthanc_credentials = var.orthanc_credentials
     orthanc_host        = var.orthanc_host
     orthanc_port        = var.orthanc_port
+    ambra_host_url      = var.ambra_host_url
+    ambra_username      = var.ambra_username
+    ambra_password      = var.ambra_password
 
     rollbar_post_server_item_access_token = var.rollbar_post_server_item_access_token
 

@@ -5,6 +5,8 @@ import os
 import sys
 import tempfile
 from glob import glob
+import zipfile
+from pathlib import Path
 
 import boto3
 import flywheel
@@ -20,6 +22,7 @@ from image_deid_etl.database import (
 from image_deid_etl.exceptions import ImproperlyConfigured
 from image_deid_etl.main_pipeline import validate_info, run_deid
 from image_deid_etl.orthanc import get_orthanc_url, get_uuids, download_unpack_copy
+from image_deid_etl.custom_ambra import ambra_download_study, get_ambra_api
 
 ENVIRONMENT = os.getenv("IMAGE_DEID_ETL_ENV", "Development")
 VALID_ENVIRONMENTS = ("Production", "Staging", "Development")
@@ -172,10 +175,14 @@ def run(args) -> int:
             )
 
         for uuid in args.uuid:
+            # build flags into command
+            flags = []
             if args.send_to_hipaa_flywheel:
-                this_command = ["image-deid-etl", "run", "--send-to-hipaa-flywheel", uuid]
-            else:
-                this_command = ["image-deid-etl", "run", uuid]
+                flags.append("--send-to-hipaa-flywheel")
+            if args.dicom_source_ambra:
+                flags.append("--dicom-source-ambra")
+
+            this_command = ["image-deid-etl", "run", flags, uuid]
 
             response = batch.submit_job(
                 jobName=f"ProcessStudy_{uuid}",
@@ -205,12 +212,24 @@ def run(args) -> int:
     local_path = f"{args.program}/{args.site}/"
 
     for uuid in args.uuid:
-        download_unpack_copy(
-            get_orthanc_url(),
-            uuid,
-            local_path + "DICOMs/",
-            args.skip_modalities,
-        )
+        if args.dicom_source_ambra:
+            # download study from Ambra
+            api = get_ambra_api()
+            study_info = api.Study.get(uuid=uuid).get()
+            ambra_download_study(study_info)
+
+            # unpack local zip
+            extract_dir = Path(f"{local_path}/DICOMs/{study_info.patientid}/{study_info.study_description}") # Path(f'./{study_info.accession_number}')
+            with zipfile.ZipFile(f'{study_info.accession_number}.zip', 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+        else:
+            # download study from Orthanc
+            download_unpack_copy(
+                get_orthanc_url(),
+                uuid,
+                local_path + "DICOMs/",
+                args.skip_modalities,
+            )
 
     # Remove any acquisitions/sessions that we don't want to process.
     delete_acquisitions_by_modality(local_path + "DICOMs/", "OT") # other
@@ -273,15 +292,16 @@ def run(args) -> int:
                 if os.path.exists(local_path + "NIfTIs_short_json/"):
                     logger.info("There are files to check in: " + local_path + "NIfTIs_short_json/")
 
-    try:
-        logger.info("Updating list of UUIDs...")
-        import_uuids_from_set(args.uuid)
-    except IntegrityError as error:
-        logger.error(
-            "Unable to mark %d UUID(s) as processed. The UUID(s) already exist in the database: %r",
-            len(args.uuid),
-            error,
-        )
+    if not args.dicom_source_ambra:
+        try:
+            logger.info("Updating list of UUIDs...")
+            import_uuids_from_set(args.uuid)
+        except IntegrityError as error:
+            logger.error(
+                "Unable to mark %d UUID(s) as processed. The UUID(s) already exist in the database: %r",
+                len(args.uuid),
+                error,
+            )
 
     return 0
 
@@ -345,8 +365,13 @@ def upload2fw(args, nifti_flag) -> int:
             with open(f"{flywheel_user_home}/.config/flywheel/user.json", "w") as f:
                 json.dump({"key": FLYWHEEL_ON_PREM_API_KEY, "root": False}, f, ensure_ascii=False)
 
+            # define on-prem Flywheel project
             source_path = f"{args.program}/{args.site}/DICOMs/"
-            fw_project = 'CHOP_raw_data'
+            if args.dicom_source_ambra:
+                fw_project = 'Ambra_landing_zone'
+            else:
+                fw_project = 'CHOP_raw_data'
+
             # handle missing PatientID
             patient_id = glob(f"{source_path}/*/")[0].split('/')[-2]
             if patient_id == 'Unknown Patient':
@@ -451,6 +476,11 @@ def main() -> int:
         "--send-to-hipaa-flywheel",
         action="store_true",
         help="upload identified DICOMs to HIPAA-compliant Flywheel instance",
+    )
+    parser_run.add_argument(
+        "--dicom-source-ambra",
+        action="store_true",
+        help="whether to source DICOMs from Ambra (default: Orthanc)",
     )
     parser_run.add_argument(
         "--skip-modalities",
