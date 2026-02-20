@@ -182,8 +182,12 @@ def run(args) -> int:
             if args.dicom_source_ambra:
                 flags.append("--dicom-source-ambra")
 
-            this_command = ["image-deid-etl", "run", flags, uuid]
-
+            this_command = ["image-deid-etl", "run"]
+            for flag in flags:
+                print(f'Adding flag {flag} to AWS Batch command.')
+                this_command += [flag]
+            this_command += [uuid]
+            
             response = batch.submit_job(
                 jobName=f"ProcessStudy_{uuid}",
                 jobQueue=aws_job_queue,
